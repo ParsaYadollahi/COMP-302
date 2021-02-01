@@ -5,7 +5,8 @@
 let mode_tests: (int list * int) list = [
   ([1], 1);
   ([1;2;2], 2);
-  ([1;1;2;2;1;2;1;2], 1)
+  ([1;1;2;2;1;2;1;2], 1);
+  (* ([(1,1);(1,2);(1,2)], (1,2)) *)
 ] ;;
 
 let mode (l: 'a list) : 'a =
@@ -28,10 +29,20 @@ let mode (l: 'a list) : 'a =
 
 (* Question 1.2 : Most common consecutive pairing *)
 
-let pair_mode_tests: (int list * (int * int) ) list = [] ;;
+let pair_mode_tests: (int list * (int * int) ) list = [
+  ([1;1;2;2;2;1;1], (2,3))
+] ;;
 
 let pair_mode (l: 'a list) : 'a * 'a =
-  notimplemented ()
+  let rec pair (l: 'a list) : ('a * 'a) list = match l with
+  | [h1;h2] -> [(h1,h2)]
+  | h1::h2::tail ->
+    (h1,h2) :: (pair (h2:: tail) ) in
+  match l with
+  | [] -> failwith "Empty list"
+  | [x] -> failwith "Needs more elements"
+  | l ->
+    mode (pair l) ;
 ;;
 
 
