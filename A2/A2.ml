@@ -13,7 +13,7 @@ let mode (l: 'a list) : 'a =
   let rec aux (l : 'a list) ((cur_el, cur_num) : 'a * int) ((max_el, max_num) : 'a * int) =
     match l with
     | [] ->
-      if cur_num > max_num then cur_el else max_el
+        if cur_num > max_num then cur_el else max_el
     | x :: remainder ->
         (* Printf.printf "cur_num = %d\n" cur_num; *)
         if cur_el = x then aux remainder (cur_el, cur_num+1) (max_el, max_num)
@@ -30,34 +30,51 @@ let mode (l: 'a list) : 'a =
 (* Question 1.2 : Most common consecutive pairing *)
 
 let pair_mode_tests: (int list * (int * int) ) list = [
-  ([1;1;2;2;2;1;1], (2,3))
+  ([1;2], (1,2));
+  ([1;1;1;1;2;3], (1,1));
+  ([1;3;4;5;1;3], (1,3));
+  ([1;1;2;2;2;1;1], (1,1))
 ] ;;
 
 let pair_mode (l: 'a list) : 'a * 'a =
   let rec pair (l: 'a list) : ('a * 'a) list = match l with
-  | [h1;h2] -> [(h1,h2)]
-  | h1::h2::tail ->
-    (h1,h2) :: (pair (h2:: tail) ) in
+    | [h1;h2] -> [(h1,h2)]
+    | h1::h2::tail ->
+        (h1,h2) :: (pair (h2:: tail) ) in
   match l with
   | [] -> failwith "Empty list"
   | [x] -> failwith "Needs more elements"
   | l ->
-    mode (pair l) ;
+      mode (pair l) ;
 ;;
 
 
 (* Section 2 : Custom data types *)
 
 let convert_time ((from_unit, val_) : time_unit value) to_unit : time_unit value =
-  notimplemented ()
+    if from_unit = Second && to_unit = Hour then (from_unit,val_/.3600.)
+    else if from_unit = Hour && to_unit = Second then (from_unit, val_ *. 3600.)
+    else (from_unit, val_)
 ;;
 
 let convert_dist ((from_unit, val_) : dist_unit value) to_unit : dist_unit value =
-  notimplemented ()
+    if from_unit = Foot && to_unit = Mile then (from_unit,val_ /. 5280.)
+    else if from_unit = Foot && to_unit = Meter then (from_unit, val_ /. 3.28084)
+    else if from_unit = Meter && to_unit = Mile then (from_unit, val_ /. 1609.344)
+    else if from_unit = Meter && to_unit = Foot then (from_unit, val_ /. 0.3048)
+    else if from_unit = Mile && to_unit = Foot then (from_unit, val_ *. 5280.)
+    else if from_unit = Mile && to_unit = Meter then (from_unit, val_ *. 1609.344)
+    else (from_unit, val_)
 ;;
 
 let convert_speed ((from_unit, val_) : speed_unit value) to_unit : speed_unit value =
-  notimplemented ()
+  let (from_unit_dist,_) = from_unit in
+  let (_,from_unit_time) = from_unit in
+  let (to_unit_dist,_) = to_unit in
+  let (_,to_unit_time) = to_unit in
+  let (dist_measure, dist) = convert_dist ((from_unit_dist), val_) (to_unit_dist) in
+  let (time_measure, time) = convert_time (from_unit_time, 1.) to_unit_time in
+  ((dist_measure, time_measure), dist/.time)
 ;;
 
 let add_speed (a : speed_unit value) ((b_unit, b_val) : speed_unit value) : speed_unit value =
