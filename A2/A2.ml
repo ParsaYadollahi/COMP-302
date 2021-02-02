@@ -52,19 +52,19 @@ let pair_mode (l: 'a list) : 'a * 'a =
 (* Section 2 : Custom data types *)
 
 let convert_time ((from_unit, val_) : time_unit value) to_unit : time_unit value =
-    if from_unit = Second && to_unit = Hour then (from_unit,val_/.3600.)
-    else if from_unit = Hour && to_unit = Second then (from_unit, val_ *. 3600.)
-    else (from_unit, val_)
+  if from_unit = Second && to_unit = Hour then (from_unit,val_/.3600.)
+  else if from_unit = Hour && to_unit = Second then (from_unit, val_ *. 3600.)
+  else (from_unit, val_)
 ;;
 
 let convert_dist ((from_unit, val_) : dist_unit value) to_unit : dist_unit value =
-    if from_unit = Foot && to_unit = Mile then (from_unit,val_ /. 5280.)
-    else if from_unit = Foot && to_unit = Meter then (from_unit, val_ /. 3.28084)
-    else if from_unit = Meter && to_unit = Mile then (from_unit, val_ /. 1609.344)
-    else if from_unit = Meter && to_unit = Foot then (from_unit, val_ /. 0.3048)
-    else if from_unit = Mile && to_unit = Foot then (from_unit, val_ *. 5280.)
-    else if from_unit = Mile && to_unit = Meter then (from_unit, val_ *. 1609.344)
-    else (from_unit, val_)
+  if from_unit = Foot && to_unit = Mile then (from_unit,val_ /. 5280.)
+  else if from_unit = Foot && to_unit = Meter then (from_unit, val_ /. 3.28084)
+  else if from_unit = Meter && to_unit = Mile then (from_unit, val_ /. 1609.344)
+  else if from_unit = Meter && to_unit = Foot then (from_unit, val_ /. 0.3048)
+  else if from_unit = Mile && to_unit = Foot then (from_unit, val_ *. 5280.)
+  else if from_unit = Mile && to_unit = Meter then (from_unit, val_ *. 1609.344)
+  else (from_unit, val_)
 ;;
 
 let convert_speed ((from_unit, val_) : speed_unit value) to_unit : speed_unit value =
@@ -99,24 +99,35 @@ let dist_traveled time ((speed_unit, speed_val) : speed_unit value) : dist_unit 
 type tree = Branch of float * tree list | Leaf
 
 let tree_example =
-	Branch (5., [
-		Branch (3., [Leaf; Leaf; Leaf]);
-		Leaf;
-		Branch (4., [])
-	])
+  Branch (5., [
+      Branch (3., [Leaf; Leaf; Leaf]);
+      Leaf;
+      Branch (4., [])
+    ])
 ;;
 
-let passes_da_vinci_tests : (tree * bool) list = [] ;;
+let passes_da_vinci_tests : (tree * bool) list = [
+  (tree_example, true)] ;;
 
 let extract_content (branch) = match branch with
- | Branch (width, children) -> (width, children)
- ;;
+  | Branch (width, children) -> (width, children)
+;;
+
+
+
+let rec sum_of_squares (branch_widths : 'a list) (sum: 'a) = match branch_widths with
+  | [] ->
+    (* Printf.printf "sum =  %f\n " sum; *)
+      sum
+  | x::remainder ->
+      let new_sum = sum +. x**2. in
+      sum_of_squares remainder new_sum
 
 let rec traverse_children (tree_list : tree list) (width_list : float list) = match tree_list with
   | [] ->
   (* List.iter (Printf.printf "%f ") width_list;
   Printf.printf "\n"; *)
-  sum_of_squares width_list 0.
+      sum_of_squares width_list 0.
   | x::remainder ->
       if x = Leaf then traverse_children remainder width_list
       else let (width,_) = extract_content x in
@@ -126,21 +137,12 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
 ;;
 
 
-let rec sum_of_squares (branch_widths : 'a list) (sum: 'a) = match branch_widths with
-  | [] ->
-    (* Printf.printf "sum =  %f\n " sum; *)
-  sum
-  | x::remainder ->
-    let new_sum = sum +. x**2. in
-    sum_of_squares remainder new_sum
 
 
-let rec p t =
+let rec passes_da_vinci t = match t with
   | Leaf -> true
   | Branch (width, children) ->
-    let children_width = traverse_children children [] in
-        if width**2. < children_width then false
-        else let (_, children) = extract_content children in
-
-    true
+      let children_width = traverse_children children [] in
+      if width**2. < children_width then false
+      else    true
 ;;
