@@ -15,14 +15,12 @@ let mode (l: 'a list) : 'a =
     | [] ->
         if cur_num > max_num then cur_el else max_el
     | x :: remainder ->
-        (* Printf.printf "cur_num = %d\n" cur_num; *)
         if cur_el = x then aux remainder (cur_el, cur_num+1) (max_el, max_num)
         else if cur_num > max_num then aux remainder (x, 1) (cur_el, cur_num)
         else aux remainder (x, 1) (max_el,max_num) in
   match List.sort compare l with
   | [] -> failwith "Empty list"
   | x::remainder ->
-  (* List.iter (Printf.printf "%d ") remainder; *)
       aux remainder (x, 1) (x, 1)
 ;;
 
@@ -96,26 +94,42 @@ let dist_traveled time ((speed_unit, speed_val) : speed_unit value) : dist_unit 
 (* Section 3 : recursive data types/induction *)
 (* Question 3 *)
 
-let passes_da_vinci_tests : (tree * bool) list = [
-  (Branch (5., [
-       Branch (3., [Leaf; Leaf; Leaf]);
-       Leaf;
-       Branch (4., [])
-     ]) , true);
-  ( Branch (10., [
-        Branch (3., [Leaf; Leaf; Leaf]);
-        Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
-        Branch (4., [])
-      ]), false)] ;;
-
-
 let t =
   Branch (10., [
       Branch (3., [Leaf; Leaf; Leaf]);
       Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
+      Branch (4., []);
+      Branch (4., []);
+    ])
+
+let t1 =
+  Branch (5., [
+      Branch (3., [Leaf; Leaf; Leaf]);
+      Branch (4., []);
+      Leaf;
+    ])
+
+let t2 =
+  Branch (5., [
+      Branch (3., [Leaf; Leaf; Leaf]);
+      Leaf;
       Branch (4., [])
     ])
 
+let t3 =
+  Branch (5., [])
+
+
+
+let passes_da_vinci_tests : (tree * bool) list = [
+  (t , false);
+  (t1, false);
+  (t2, false);
+  (t3, true)
+
+
+
+      ] ;;
 
 let extract_content (branch) = match branch with
   | Branch (width, children) -> (width, children)
@@ -133,27 +147,33 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
   | x::remainder ->
       if x = Leaf then traverse_children remainder width_list
       else let (width,_) = extract_content x in
-        (* Printf.printf "%f \n" width ; *)
         let new_list = width_list @ [width] in
         traverse_children remainder new_list
 ;;
 
-let rec passes_da_vinci t =
-  let rec helper l cw w = match l with
-    | [] -> if w ** 2. < cw then false else true
+
+let rec passes_da_vinci_2 t valid =
+  let rec helper l valid = match l with
+    | [] -> valid
     | x::xs ->
-        if w ** 2. < cw then false else
-          passes_da_vinci x;
-        helper xs cw w in
+          let y = passes_da_vinci_2 x valid in
+          helper xs y in
 
   match t with
-  | Leaf -> true
+  | Leaf -> valid
   | Branch (width, children) ->
-      let break = false in
       let children_width = traverse_children children [] in
-      Printf.printf "width = %f \n" (width**2.) ;
-      Printf.printf "children_width = %f \n" children_width ;
-      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ;
-      if width ** 2. < children_width then false
-      else helper children children_width width;
+      let y = width ** 2. >= children_width in
+         (* Printf.printf "children_width %f\n" children_width;
+        Printf.printf "width %f\n" width;
+        Printf.printf "valid %b\n" valid;
+        Printf.printf "y %b\n\n" y; *)
+      if valid then
+        helper children y
+      else helper children false;
 ;;
+
+
+let rec passes_da_vinci t = match t with
+  | Leaf -> true
+  | Branch (width, children) -> passes_da_vinci_2 t true ;;
