@@ -98,16 +98,16 @@ let dist_traveled time ((speed_unit, speed_val) : speed_unit value) : dist_unit 
 
 type tree = Branch of float * tree list | Leaf
 
-let tree_example =
-  Branch (5., [
+let t =
+  Branch (10., [
       Branch (3., [Leaf; Leaf; Leaf]);
-      Leaf;
+      Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
       Branch (4., [])
     ])
 ;;
 
 let passes_da_vinci_tests : (tree * bool) list = [
-  (tree_example, true)] ;;
+  (t, true)] ;;
 
 let extract_content (branch) = match branch with
   | Branch (width, children) -> (width, children)
@@ -139,10 +139,22 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
 
 
 
-let rec passes_da_vinci t = match t with
+let rec p t =
+  let rec helper l = match l with
+    | [] -> true
+    | x::xs ->
+        p x;
+        helper xs in
+
+
+match t with
   | Leaf -> true
   | Branch (width, children) ->
+      let break = false in
       let children_width = traverse_children children [] in
-      if width**2. < children_width then false
-      else    true
+      Printf.printf "width = %f \n" (width**2.) ;
+      Printf.printf "children_width = %f \n" children_width ;
+      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ;
+      if width ** 2. < children_width then false
+      else helper children;
 ;;
