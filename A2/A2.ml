@@ -97,7 +97,25 @@ let dist_traveled time ((speed_unit, speed_val) : speed_unit value) : dist_unit 
 (* Question 3 *)
 
 let passes_da_vinci_tests : (tree * bool) list = [
-  (t, true)] ;;
+  (Branch (5., [
+       Branch (3., [Leaf; Leaf; Leaf]);
+       Leaf;
+       Branch (4., [])
+     ]) , true);
+  ( Branch (10., [
+        Branch (3., [Leaf; Leaf; Leaf]);
+        Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
+        Branch (4., [])
+      ]), false)] ;;
+
+
+let t =
+  Branch (10., [
+      Branch (3., [Leaf; Leaf; Leaf]);
+      Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
+      Branch (4., [])
+    ])
+
 
 let extract_content (branch) = match branch with
   | Branch (width, children) -> (width, children)
@@ -120,12 +138,12 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
         traverse_children remainder new_list
 ;;
 
-let rec passes_da_vinci (t: tree) : bool =
-  let rec helper (l : 'a list) (cw: float) (w: float) : bool = match l with
-    | [] -> if w ** 2. < cw then true else false
+let rec passes_da_vinci t =
+  let rec helper l cw w = match l with
+    | [] -> if w ** 2. < cw then false else true
     | x::xs ->
         if w ** 2. < cw then false else
-        passes_da_vinci x;
+          passes_da_vinci x;
         helper xs cw w in
 
   match t with
@@ -133,9 +151,9 @@ let rec passes_da_vinci (t: tree) : bool =
   | Branch (width, children) ->
       let break = false in
       let children_width = traverse_children children [] in
-      (* Printf.printf "width = %f \n" (width**2.) ;
+      Printf.printf "width = %f \n" (width**2.) ;
       Printf.printf "children_width = %f \n" children_width ;
-      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ; *)
+      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ;
       if width ** 2. < children_width then false
       else helper children children_width width;
 ;;
