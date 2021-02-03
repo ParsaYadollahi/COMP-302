@@ -96,16 +96,6 @@ let dist_traveled time ((speed_unit, speed_val) : speed_unit value) : dist_unit 
 (* Section 3 : recursive data types/induction *)
 (* Question 3 *)
 
-type tree = Branch of float * tree list | Leaf
-
-let t =
-  Branch (10., [
-      Branch (3., [Leaf; Leaf; Leaf]);
-      Branch (1., [ Branch (3., [Leaf; Leaf; Leaf]); Leaf; Branch (4., [])]);
-      Branch (4., [])
-    ])
-;;
-
 let passes_da_vinci_tests : (tree * bool) list = [
   (t, true)] ;;
 
@@ -113,20 +103,14 @@ let extract_content (branch) = match branch with
   | Branch (width, children) -> (width, children)
 ;;
 
-
-
 let rec sum_of_squares (branch_widths : 'a list) (sum: 'a) = match branch_widths with
-  | [] ->
-    (* Printf.printf "sum =  %f\n " sum; *)
-      sum
+  | [] -> sum
   | x::remainder ->
       let new_sum = sum +. x**2. in
       sum_of_squares remainder new_sum
 
 let rec traverse_children (tree_list : tree list) (width_list : float list) = match tree_list with
   | [] ->
-  (* List.iter (Printf.printf "%f ") width_list;
-  Printf.printf "\n"; *)
       sum_of_squares width_list 0.
   | x::remainder ->
       if x = Leaf then traverse_children remainder width_list
@@ -136,25 +120,22 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
         traverse_children remainder new_list
 ;;
 
-
-
-
-let rec p t =
-  let rec helper l = match l with
-    | [] -> true
+let rec passes_da_vinci (t: tree) : bool =
+  let rec helper (l : 'a list) (cw: float) (w: float) : bool = match l with
+    | [] -> if w ** 2. < cw then true else false
     | x::xs ->
-        p x;
-        helper xs in
+        if w ** 2. < cw then false else
+        passes_da_vinci x;
+        helper xs cw w in
 
-
-match t with
+  match t with
   | Leaf -> true
   | Branch (width, children) ->
       let break = false in
       let children_width = traverse_children children [] in
-      Printf.printf "width = %f \n" (width**2.) ;
+      (* Printf.printf "width = %f \n" (width**2.) ;
       Printf.printf "children_width = %f \n" children_width ;
-      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ;
+      Printf.printf "width<children = %b \n\n" (width ** 2. < children_width) ; *)
       if width ** 2. < children_width then false
-      else helper children;
+      else helper children children_width width;
 ;;
