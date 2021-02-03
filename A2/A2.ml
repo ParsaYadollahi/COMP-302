@@ -137,6 +137,9 @@ let t5 =
       Leaf;
     ])
 
+let t6 =
+  Branch (5., [Branch (4., [Branch (3., [Branch (2., [Branch (1., [Leaf;]);]);]);]);])
+
 
 let passes_da_vinci_tests : (tree * bool) list = [
   (t , false);
@@ -145,6 +148,7 @@ let passes_da_vinci_tests : (tree * bool) list = [
   (t3, true);
   (t4, true);
   (t5, false);
+  (t6, true);
       ] ;;
 
 let extract_content (branch) = match branch with
