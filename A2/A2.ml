@@ -29,6 +29,7 @@ let mode (l: 'a list) : 'a =
 
 let pair_mode_tests: (int list * (int * int) ) list = [
   ([1;2], (1,2));
+  ([1;2;1], (1,2));
   ([1;1;1;1;2;3], (1,1));
   ([1;3;4;5;1;3], (1,3));
   ([1;1;2;2;2;1;1], (1,1))
@@ -57,14 +58,19 @@ let convert_time ((from_unit, val_) : time_unit value) to_unit : time_unit value
   else (from_unit, val_)
 ;;
 
-let convert_dist ((from_unit, val_) : dist_unit value) to_unit : dist_unit value =
-  if from_unit = Foot && to_unit = Mile then (from_unit,val_ /. 5280.)
-  else if from_unit = Foot && to_unit = Meter then (from_unit, val_ /. 3.28084)
-  else if from_unit = Meter && to_unit = Mile then (from_unit, val_ /. 1609.344)
-  else if from_unit = Meter && to_unit = Foot then (from_unit, val_ /. 0.3048)
-  else if from_unit = Mile && to_unit = Foot then (from_unit, val_ *. 5280.)
-  else if from_unit = Mile && to_unit = Meter then (from_unit, val_ *. 1609.344)
-  else (from_unit, val_)
+let convert_dist ((from_unit, val_) : dist_unit value) to_unit : dist_unit value = match from_unit with
+  |  Foot -> (match to_unit with
+    | Mile -> (from_unit,val_ /. 5280.);
+    | Meter -> (from_unit, val_ /. 3.28084);
+    | Foot -> (from_unit, val_));
+  |  Meter -> (match to_unit with
+    | Mile -> (from_unit, val_ /. 1609.344);
+    | Meter -> (from_unit, val_);
+    | Foot -> (from_unit, val_ /. 0.3048));
+  |  Mile -> (match to_unit with
+    | Mile -> (from_unit, val_);
+    | Meter -> (from_unit, val_ *. 1609.344);
+    | Foot -> (from_unit, val_ *. 5280.));
 ;;
 
 let convert_speed ((from_unit, val_) : speed_unit value) to_unit : speed_unit value =
