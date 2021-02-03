@@ -36,12 +36,14 @@ let pair_mode_tests: (int list * (int * int) ) list = [
 
 let pair_mode (l: 'a list) : 'a * 'a =
   let rec pair (l: 'a list) : ('a * 'a) list = match l with
+    | [] -> []
+    | [_] -> []
     | [h1;h2] -> [(h1,h2)]
     | h1::h2::tail ->
         (h1,h2) :: (pair (h2:: tail) ) in
   match l with
   | [] -> failwith "Empty list"
-  | [x] -> failwith "Needs more elements"
+  | [_] -> failwith "Needs more elements"
   | l ->
       mode (pair l) ;
 ;;
@@ -119,19 +121,28 @@ let t2 =
 let t3 =
   Branch (5., [])
 
+let t4 =
+  Leaf
+
+let t5 =
+  Branch (5., [
+      Branch (3., [Leaf; Leaf; Leaf]);
+      Branch (6., []);
+      Leaf;
+    ])
 
 
 let passes_da_vinci_tests : (tree * bool) list = [
   (t , false);
-  (t1, false);
-  (t2, false);
-  (t3, true)
-
-
-
+  (t1, true);
+  (t2, true);
+  (t3, true);
+  (t4, true);
+  (t5, false);
       ] ;;
 
 let extract_content (branch) = match branch with
+  | Leaf -> (0., [])
   | Branch (width, children) -> (width, children)
 ;;
 
@@ -151,7 +162,6 @@ let rec traverse_children (tree_list : tree list) (width_list : float list) = ma
         traverse_children remainder new_list
 ;;
 
-
 let rec passes_da_vinci_2 t valid =
   let rec helper l valid = match l with
     | [] -> valid
@@ -164,16 +174,11 @@ let rec passes_da_vinci_2 t valid =
   | Branch (width, children) ->
       let children_width = traverse_children children [] in
       let y = width ** 2. >= children_width in
-         (* Printf.printf "children_width %f\n" children_width;
-        Printf.printf "width %f\n" width;
-        Printf.printf "valid %b\n" valid;
-        Printf.printf "y %b\n\n" y; *)
       if valid then
         helper children y
       else helper children false;
 ;;
 
-
-let rec passes_da_vinci t = match t with
+let passes_da_vinci t = match t with
   | Leaf -> true
-  | Branch (width, children) -> passes_da_vinci_2 t true ;;
+  | Branch (_,_ ) -> passes_da_vinci_2 t true ;;
