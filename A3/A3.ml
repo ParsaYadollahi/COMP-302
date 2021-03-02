@@ -38,13 +38,13 @@ let make_manager (masterpass : masterpass) : pass_manager =
     else raise AccountLocked
   in
   let get_force m a = find_map
-      (
-        fun x -> match x with
-          | (y,z) ->
-              if a = y
-              then Some(decrypt m z)
-              else None
-      ) !ref_list in
+    (
+      fun x -> match x with
+      | (y,z) ->
+        if a = y
+        then Some(decrypt m z)
+        else None
+    ) !ref_list in
   let get m a =
     if !failed < 3 then (
       verify m; get_force m a
@@ -52,9 +52,9 @@ let make_manager (masterpass : masterpass) : pass_manager =
     else raise AccountLocked
   in
   let update_master m1 m2 = verify m1;
-    List.map (
-      fun x -> match x with
-        | (_,z) -> encrypt m2 (decrypt m1 z)
+  List.map (
+    fun x -> match x with
+      | (_,z) -> encrypt m2 (decrypt m1 z)
     ) !ref_list;
     ref_master := m2
   in
