@@ -29,37 +29,38 @@ let make_manager (masterpass : masterpass) : pass_manager =
   let ref_master = ref masterpass in
   let counter = ref 0 in
   let failed = ref 0 in
-  let verify input =
-    if input = !ref_master then counter := !counter + 1
-    else raise WrongPassword; failed := !failed + 1
+  let verify_pass masterpass_input =
+    if masterpass_input = !ref_master then counter := !counter + 1
+    else (
+      if !failed > 2 then raise AccountLocked
+      else raise WrongPassword; failed := !failed + 1
+    )
   in
-  let save m a p =
-    if !failed < 3 then (verify m; ref_list := (a, encrypt m p) :: !ref_list)
+  let save master address password_in =
+    if !failed < 3 then (verify_pass master; ref_list := (address, encrypt master password_in) :: !ref_list)
     else raise AccountLocked
   in
-  let get_force m a = find_map
-    (
-      fun x -> match x with
-      | (y,z) ->
-        if a = y
-        then Some(decrypt m z)
-        else None
-    ) !ref_list in
-  let get m a =
+  let get_force master address =
+    let f = fun tuple -> let (add, pass) = tuple in if address = add then
+    Some (decrypt master pass) else
+    None in
+    find_map f !ref_list in
+  let get master address =
     if !failed < 3 then (
-      verify m; get_force m a
+      verify_pass master;
+      get_force master address
     )
     else raise AccountLocked
   in
-  let update_master m1 m2 = verify m1;
+  let update_master m1 m2 = verify_pass m1;
   List.map (
     fun x -> match x with
       | (_,z) -> encrypt m2 (decrypt m1 z)
     ) !ref_list;
     ref_master := m2
   in
-  let count_ops m =
-    if !failed < 3 then (verify m; !counter)
+  let count_ops master =
+    if !failed < 3 then (verify_pass master; !counter)
     else raise AccountLocked
   in {save; get_force; get; update_master; count_ops}
 ;;
