@@ -94,7 +94,14 @@ let catalan_count (n : int) : (int * int) =
 let memoize (f : ('a -> 'b) -> 'a -> 'b) (stats : stats) : 'a -> 'b =
   let hash = Hashtbl.create 1000 in
   let rec f' x =
-    raise NotImplemented
+    match Hashtbl.find_opt hash x with
+    | None -> let elemeent = f f' x in
+        stats.entries := !(stats.entries) + 1;
+        Hashtbl.add hash x elemeent;
+        let Some new_entry = Hashtbl.find_opt hash x in
+        new_entry
+    | Some entry -> stats.lkp := !(stats.lkp) + 1;
+        entry
   in
   f'
 ;;
