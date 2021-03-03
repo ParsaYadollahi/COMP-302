@@ -13,13 +13,12 @@ let par x = (x / 2) = 0 ;;
 let lst = [1;2;3;4;5;6;7;8;9]
 
 let partition (p : 'a -> bool) (l : 'a list) : ('a list * 'a list) =
-  raise NotImplemented
-  (* let tru = [] in
-  let flse = [] in
-  List.fold_right (fun x a -> match x with
-  | [] -> (tru, flse)
-  | x ->
-    if p x then ((tru::x), flse) else (tru, (flse::x)) ) l (tru, flse) *)
+  let helper = fun (e) ((t, f)) ->
+    if p e
+    then e:: t, f
+    else
+      t, e :: f
+  in List.fold_right helper l([],[])
 ;;
 
 (* Question 2 *)
@@ -42,9 +41,9 @@ let make_manager (masterpass : masterpass) : pass_manager =
   in
   let get_force master address =
     let f = fun tuple -> let (add, pass) = tuple in
-     if address = add then
-      Some (decrypt master pass) else
-      None in
+      if address = add then
+        Some (decrypt master pass) else
+        None in
     find_map f !ref_list in
   let get master address =
     if !failed_counter < 3 then (
@@ -54,9 +53,9 @@ let make_manager (masterpass : masterpass) : pass_manager =
     else raise AccountLocked
   in
   let update_master curr_pass new_pass = verify_pass curr_pass ref_master;
-  List.map (
-    fun tuple -> let (add,pass) = tuple  in
-      encrypt new_pass (decrypt curr_pass pass)
+    List.map (
+      fun tuple -> let (add,pass) = tuple  in
+        encrypt new_pass (decrypt curr_pass pass)
     ) !ref_list;
     ref_master := new_pass
   in
@@ -71,7 +70,24 @@ let make_manager (masterpass : masterpass) : pass_manager =
 (* Counting values at same time *)
 let catalan_count (n : int) : (int * int) =
   let count_rec_calls = ref 0 in
-  raise NotImplemented
+  let rec catalan n =
+    count_rec_calls := !count_rec_calls + 1;
+    if n != 0 then
+      (
+        let rec helper i n acc =
+        if i <= n then
+          helper (i + 1) n (acc + catalan i * catalan (n - i))
+        else
+          acc
+        in
+        helper 0 (n-1) 0
+      )
+      else 1 in
+  if n = 0 then
+    (1, 1)
+  else
+    let output = catalan n in
+    (output, !count_rec_calls)
 ;;
 
 (* Memoization function *)
