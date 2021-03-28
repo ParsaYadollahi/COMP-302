@@ -383,7 +383,106 @@ let unify_tests : ((typ * typ) * unit) list = [
 
 (* find the next function for Q5 *)
 (* Q6  : Unify two types *)
-let unify (ty1 : typ) (ty2 : typ) : unit = raise NotImplemented
+let rec unify (ty1 : typ) (ty2 : typ) : unit =
+  let rec aux1 type1 any1 = match type1 with
+    | TInt -> true
+    | TBool -> true
+    | TArrow (typeOne, typeTwo) ->
+        (aux1 typeOne any1);
+        (aux1 typeTwo any1)
+    | TProduct (l1) ->
+        List.for_all (
+          fun el -> aux1 el any1
+        ) l1
+    | TVar var ->
+        if var = any1 then
+          type_fail "Fail in the free variables"
+        else
+          let nonVar = !var in
+          match (nonVar) with
+          | None -> true
+          | Some var' ->
+              aux1 var' any1
+  in
+  let rec aux2 bool type1 any = match type1 with
+    | TInt -> true
+    | TBool -> true
+    | TArrow (typeOne, typeTwo) ->
+        (aux2 true typeOne any);
+        (aux2 true typeTwo any)
+    | TProduct (l1) ->
+        List.for_all (fun el -> aux2 true el any) l1
+    | TVar var ->
+        if var = any then
+          bool &&
+          (type_fail "Fail in the free variables")
+        else
+          let nonVar = !var in
+          match (nonVar) with
+          | None -> true
+          | Some var' ->
+              aux2 bool var' any
+  in
+  if typ_eq ty1 ty2 then
+    ()
+  else
+    match (ty1, ty2) with
+    | TVar var, TVar var' -> (
+        match (!var, !var') with
+        | Some (el), Some (el') -> unify el el'
+        | Some (el'), None ->
+            let comp = aux2 false el' var' in
+            if comp then
+              var':= !var
+            else
+              ()
+        | None, Some (gy')  ->  if aux2 false gy' var then  var := !var' else ()
+        | None, None ->
+            let comp = var != var' in
+            if comp then
+              let tVar = TVar var' in
+              var := Some tVar
+            else
+              ()
+      )
+    | TVar var, type1 -> (
+        match !var with
+        | Some el -> unify el type1
+        | None ->
+            let comp = aux1 type1 var in
+            if comp then
+              var := Some (type1)
+            else
+              type_fail "Fail in the free variables"
+      )
+    | type1, TVar var ->
+        ( match !var with
+          | Some el -> unify el type1
+          | None ->
+              let comp = aux1 type1 var in
+              if comp then
+                var := Some type1
+              else
+                type_fail "Fail in the free variables"
+        )
+    | TArrow (type1, type2), TArrow (s1, s2) ->
+      unify type1 s1;
+      unify type2 s2
+    | TProduct (list1'), TProduct (list2') ->
+      let lenList1 = List.length list1' in
+      let lenList2 = List.length list2' in
+      if  lenList1 = lenList2 then
+        type_fail "Length of Tuples are unequal"
+      else
+        let rec aux3 list1 list2 = match (list1, list2) with
+          | [], [] -> ()
+          | (list1Head::list1Remainder), (list2Head::list2Remainder) ->
+            unify list1Head list2Head;
+            aux3 list1Remainder list2Remainder
+          | _ -> ()
+        in (aux3 list1' list2')
+    | _ -> type_fail "Error - Was unable to Unify!"
+
 
 
 (* Now you can play with the language that you've implemented! *)
