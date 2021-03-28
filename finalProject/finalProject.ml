@@ -233,11 +233,17 @@ let eval_tests : (exp * exp) list = [
 
 
   (* Useful helper function *)
-let replacing list expr =
-  let rec replacing2 list2 expr2 = match list2 with
-    | [] -> expr2
-    | i::t -> let (b, c) = i in replacing2 t (subst (b, c) expr2)
-  in replacing2 (List.rev list) expr
+let replacing l1 var =
+  let rec aux l2 var2 = match l2 with
+    | [] -> var2
+    | x :: remainder ->
+        let (b, c) = x in
+        let substEl = subst (b, c) in
+        let rem = (substEl var2) in
+        aux remainder rem
+  in
+  let revListL1 = (List.rev l1) in
+  aux revListL1 var
 
 (* Q4  : Evaluate an expression in big-step *)
 let rec eval : exp -> exp =
