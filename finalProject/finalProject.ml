@@ -152,17 +152,17 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
       else
         Fn (y, t, e)
   | Rec (y, t, e) ->
-    if y != x then
-    let subEl = subst (e', x) in
-    let freeVars = free_vars e' in
-      if member y freeVars then
-        let freshVar = fresh_var y in
-        let subVar = subEl (subst (Var (freshVar), y) e) in
-        Rec (freshVar, t, subVar)
+      if y != x then
+        let subEl = subst (e', x) in
+        let freeVars = free_vars e' in
+        if member y freeVars then
+          let freshVar = fresh_var y in
+          let subVar = subEl (subst (Var (freshVar), y) e) in
+          Rec (freshVar, t, subVar)
+        else
+          Rec (y, t, subEl e)
       else
-        Rec (y, t, subEl e)
-    else
-      Rec (y, t, e)
+        Rec (y, t, e)
 
 
 
@@ -231,6 +231,14 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
 let eval_tests : (exp * exp) list = [
 ]
 
+
+  (* Useful helper function *)
+let replacing list expr =
+  let rec replacing2 list2 expr2 = match list2 with
+    | [] -> expr2
+    | i::t -> let (b, c) = i in replacing2 t (subst (b, c) expr2)
+  in replacing2 (List.rev list) expr
+
 (* Q4  : Evaluate an expression in big-step *)
 let rec eval : exp -> exp =
   (* do not change the code from here *)
@@ -258,22 +266,91 @@ let rec eval : exp -> exp =
       | Anno (e, _) -> eval e     (* types are ignored in evaluation *)
       | Var x -> stuck ("Free variable \"" ^ x ^ "\" during evaluation")
 
-      | Fn (x, t, e) -> raise NotImplemented
-      | Apply (e1, e2) -> raise NotImplemented
-      | Rec (f, t, e) -> raise NotImplemented
+      | Fn (x, t, e) ->
+          Fn (x, t, e)
+      | Apply (e1, e2) ->
+          let evalE1 = eval e1 in
+          match evalE1 with
+          | Fn (el1, el2, el3) ->
+              let evalE2 = eval e2 in
+              let substE2 = subst (evalE2, el1) in
+              eval (substE2 el3 )
+          | _ -> stuck ("Didn't evaluate to a function")
 
-      | Primop (And, es) ->
-          raise NotImplemented
-      | Primop (Or, es) ->
-          raise NotImplemented
-      | Primop (op, es) ->
-          let vs = List.map eval es in
-          begin match eval_op op vs with
-            | None -> stuck "Bad arguments to primitive operation"
-            | Some v -> v
-          end
 
-      | Let (ds, e) -> raise NotImplemented
+          | Rec (f, t, e) ->
+              let r = Rec (f,t, e) in
+              let substR = subst ((r), f) in
+              eval (substR e)
+
+          | Primop (And, es) -> Bool (
+              List.fold_left (
+                fun el1 el2 ->
+                  let evalEl2 = eval el2 in
+                  match evalEl2 with
+                  | Bool bool ->
+                      if bool then
+                        el1
+                      else
+                        bool
+                  | _ -> stuck ("Did not get a boolean")
+              ) true es  )
+          | Primop (Or, es) -> Bool (
+              List.fold_left (
+                fun el1 el2 ->
+                  let evalEl2 = eval el2 in
+                  match evalEl2 with
+                  | Bool bool ->
+                      if bool then
+                        bool
+                      else
+                        el1
+                  | _ -> stuck ("Did not get a boolean")
+              ) true es  )
+          | Primop (op, es) ->
+              let vs = List.map eval es in
+              begin match eval_op op vs with
+                | None -> stuck "Bad arguments to primitive operation"
+                | Some v -> v
+              end
+
+          | Let (ds, e) ->
+              let rec aux el1 el2 = match el1 with
+                | [] -> el2
+                | x :: remainder -> match x with
+                  | Val (var1, var2)  ->
+                      let replace = replacing el2 var1 in
+                      let evalReplace = [eval (replacing el2 var1), var2] in
+                      let concatReplace = el2 @ evalReplace in
+                      aux remainder (concatReplace)
+                  | ByName (var1, var2) ->
+                      let replace = replacing el2 var1 in
+                      let addReplace = [replace, var2] in
+                      let concatReplace = el2 @ addReplace in
+                      aux remainder (concatReplace)
+                  | Valtuple (var1, var2) ->
+                      let evalVar1 = eval var1 in
+                      match evalVar1 with
+                      | Tuple (l1) ->
+                          let lenList1 = List.length l1 in
+                          let lenList2 = List.length var2 in
+                          if  lenList1 = lenList2 then
+                            stuck "length of Tuple is wring"
+                          else
+                            let rec substTuples l1 l2 repl = match (l1, l2) with
+                              | ([], _) -> repl
+                              | (x_l1::remainderL1, y_l2::remainderL2) ->
+                                  let replace = replacing repl y_l2 in
+                                  let addReplace = [replace, x_l1] in
+                                  let concatReplace = repl @ addReplace in
+                                  substTuples remainderL1 remainderL2 concatReplace
+                              | _ -> repl
+                            in let rep = substTuples var2 l1 el2 in
+                            aux remainder rep
+                      | _ ->  stuck "Needed a tuple"
+              in let repl = aux ds [] in
+              let el = replacing repl e
+              in eval el
     in
   (* do not change the code from here *)
     decr bigstep_depth;
