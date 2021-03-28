@@ -135,11 +135,98 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
   | Tuple es -> Tuple (List.map (subst (e', x)) es)
   | Anno (e, t) -> Anno (subst (e', x) e, t)
 
-  | Let (ds, e2) -> raise NotImplemented
-  | Apply (e1, e2) -> raise NotImplemented
-  | Fn (y, t, e) -> raise NotImplemented
-  | Rec (y, t, e) -> raise NotImplemented
+  | Apply (e1, e2) ->
+      let subst1 = subst (e', x) e1 in
+      let subst2 = subst (e', x) e2 in
+      Apply (subst1, subst2)
+  | Fn (y, t, e) ->
+      if y != x then
+        let subEl = subst (e', x) in
+        let freeVar = free_vars e' in
+        if member y freeVar then
+          let freshVar = fresh_var y in
+          let subVar = subEl (subst (Var (freshVar), y) e) in
+          Fn (freshVar, t, subVar)
+        else
+          Fn (y, t, subEl e)
+      else
+        Fn (y, t, e)
+  | Rec (y, t, e) ->
+    if y != x then
+    let subEl = subst (e', x) in
+    let freeVars = free_vars e' in
+      if member y freeVars then
+        let freshVar = fresh_var y in
+        let subVar = subEl (subst (Var (freshVar), y) e) in
+        Rec (freshVar, t, subVar)
+      else
+        Rec (y, t, subEl e)
+    else
+      Rec (y, t, e)
 
+
+
+  | Let (ds, e2) -> raise NotImplemented
+      (* let f = free_vars e' in
+      let replacing list expr =
+        let rec replacing2 list2 expr2 = match list2 with
+          | [] -> expr2
+          | i::t -> let (b, c) = i in replacing2 t (subst (b, c) expr2)
+        in replacing2 (List.rev list) expr in
+      let rec helper2 l1 l2 replace track = (match l1 with
+          | [] ->  (l2, replace, track)
+          | h::t -> match h with
+            | Val (y, n) ->
+                if n = x then (if not(track) then (helper2 t
+                                                     ( l2 @ [Val (  (
+                                                           subst (e', x)
+                                                             (replacing replace y)
+                                                         ), n) ]      )
+                                                     replace true) else
+                                 (helper2 t ( l2 @ [Val (  ( replacing replace y
+                                                           ), n) ]) replace true))
+                else if member n f then let z = fresh_var n in helper2 t
+                    ( if not(track) then (
+                          l2 @ [Val (( subst (e', x)(replacing replace y)
+                                     ), z) ]) else ( l2 @ [Val ((
+                        replacing replace y ), z) ]) ) (replace @ [(Var (z), n)])
+                    track
+                else helper2 t ( if not(track) then ( l2 @ [Val (  (
+                    subst (e', x) (replacing replace y) ), n) ]) else
+                      ( l2 @ [Val (( replacing replace y ), n) ]) ) replace track
+            | Valtuple (y,n) ->
+                let rec find l1x l2x l3x trk = (match l1x with
+                    | [] -> (l2x, l3x, trk)
+                    | h::t ->
+                        if h = x then find t (l2x @ [x]) l3x true else
+                        if member h f then let z = fresh_var h in
+                          find t (l2x @ [z]) (l3x @ [(Var(z), h)]) trk
+                        else find t (l2x @ [h]) l3x trk )
+                in let (ax, bx, tr1) = find n [] [] false in
+                helper2 t  ( if not(track) then ( l2 @ [Valtuple (  (
+                    subst (e', x) (replacing replace y) ), ax) ])
+                    else ( l2 @ [Valtuple (( replacing replace y ), ax) ]) )
+                  (replace @ bx) (track || tr1)
+            | ByName (y, n) ->
+                if n = x then (if not(track) then (helper2 t ( l2 @ [ByName ( (
+                    subst (e', x) (replacing replace y) ), n) ]) replace true)
+                   else (helper2 t ( l2 @ [ByName (  ( replacing replace y
+                                                     ), n) ]) replace true)) else
+                if member n f then let z = fresh_var n in helper2 t
+                    (if not(track) then ( l2 @ [ByName (( subst (e', x)
+                                                            (replacing replace y)
+                                                        ), z) ]      )
+                     else ( l2 @ [ByName (( replacing replace y ), z) ] ) )
+                    (replace @ [(Var (z), n)]) track
+                else helper2 t (if not(track) then ( l2 @ [ByName (  (
+                    subst (e', x)(replacing replace y) ), n) ])
+                   else  ( l2 @ [ByName (( replacing replace y ), n) ]))
+                    replace track ) in let (g,h,tr) = helper2 ds [] [] false in
+      if not tr then Let (g, subst (e', x) (replacing h e2 ) )
+      else Let (g, (replacing h e2)) *)
+
+(* TESTING SUBST OUT *)
+(* let subst ( Int 5 , "x") ( If ( Bool ( true ) , Var "x", Var "y") ) ; *)
 
 let eval_tests : (exp * exp) list = [
 ]
