@@ -166,8 +166,8 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
 
 
 
-  | Let (ds, e2) -> raise NotImplemented
-      (* let f = free_vars e' in
+  | Let (ds, e2) ->
+      let f = free_vars e' in
       let replacing list expr =
         let rec replacing2 list2 expr2 = match list2 with
           | [] -> expr2
@@ -223,7 +223,7 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                    else  ( l2 @ [ByName (( replacing replace y ), n) ]))
                     replace track ) in let (g,h,tr) = helper2 ds [] [] false in
       if not tr then Let (g, subst (e', x) (replacing h e2 ) )
-      else Let (g, (replacing h e2)) *)
+      else Let (g, (replacing h e2))
 
 (* TESTING SUBST OUT *)
 (* let subst ( Int 5 , "x") ( If ( Bool ( true ) , Var "x", Var "y") ) ; *)
@@ -555,53 +555,53 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
               concatInferElY
             )
         )
-      [] tList in
+          [] tList in
       TProduct (t)
     )
 
   | Fn (el1, el2, el3) -> (
-    match el2 with
+      match el2 with
       | Some (type1) ->
-        let extendType = el1, type1 in
-        let inferExtend = extend ctx (extendType) in
-        let inferEl = infer inferExtend el3 in
-        TArrow (
-        type1, inferEl
-        )
+          let extendType = el1, type1 in
+          let inferExtend = extend ctx (extendType) in
+          let inferEl = infer inferExtend el3 in
+          TArrow (
+            type1, inferEl
+          )
       | None ->
-        let extendctx = el1, fresh_tvar() in
-        let inferAny = extend ctx extendctx in
-        let inferEl3 = infer inferAny el3 in
-        let inferEl1 = infer inferAny (Var el1) in
-        TArrow (
-          inferEl1 ,
-          inferEl3
-        )
+          let extendctx = el1, fresh_tvar() in
+          let inferAny = extend ctx extendctx in
+          let inferEl3 = infer inferAny el3 in
+          let inferEl1 = infer inferAny (Var el1) in
+          TArrow (
+            inferEl1 ,
+            inferEl3
+          )
     )
   | Rec (el1, el2, el3) -> el2
   | Let (li,e1) ->
       let rec aux map key =
         let Ctx(m) = map in
-          match m with
-          | [] -> false
-          | (t, _)::remainder ->
+        match m with
+        | [] -> false
+        | (t, _)::remainder ->
             if t = key then
               true
             else
-             aux (Ctx (remainder)) key
+              aux (Ctx (remainder)) key
       in
       let rec fold_ex list1 list2 repl =
         match list1 with
         | [] -> (list2, repl)
         | x :: remainder -> (
-          match x with
+            match x with
             | Val (el1, el2) | ByName (el1, el2) -> (
                 if aux list2 el2 then (
-                 let naz = fresh_var el2 in
-                 let replaceEl1 = replacing repl el1 in
-                 let inferEl1 = infer list2 replaceEl1 in
-                 let extendInfer =  naz, inferEl1 in
-                 let extendList2 = extend list2 (extendInfer) in
+                  let naz = fresh_var el2 in
+                  let replaceEl1 = replacing repl el1 in
+                  let inferEl1 = infer list2 replaceEl1 in
+                  let extendInfer =  naz, inferEl1 in
+                  let extendList2 = extend list2 (extendInfer) in
                   let elArray = [(Var (naz)), el2] in
                   let concatElRepl = repl @ elArray in
                   fold_ex remainder extendList2 concatElRepl
@@ -613,46 +613,62 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
                   let extendList2 = extend list2 (extendInfer) in
                   fold_ex remainder extendList2 repl
                 )
-            )
+              )
             | Valtuple (l1, l2) -> (
-              let replace = replacing repl l1 in
-              let matching = infer list2 replace in
-              match matching with
+                let replace = replacing repl l1 in
+                let matching = infer list2 replace in
+                match matching with
                 | TProduct (l3) ->
-                  let lenList2 = List.length l2 in
-                  let lenList3 = List.length l3 in
-                  if lenList2 = lenList3 then
+                    let lenList2 = List.length l2 in
+                    let lenList3 = List.length l3 in
+                    if lenList2 = lenList3 then
                       type_fail "Error - Size of tuples must be equal"
                     else let rec aux2 l1x l2x l3x rep =
                            match (l1x, l2x) with
                            | ([], _) -> (l3x, rep)
                            | (head::tail), (head2::tail2) ->
                                if aux l3x head then (
-                                let gz = fresh_var head in
-                                let extendL3x = extend l3x (gz,head2) in
-                                let gzArray = [((Var (gz)), head)] in
-                                let concatGZArray = (rep @  gzArray) in
-                                 aux2 tail tail2 extendL3x concatGZArray
+                                 let gz = fresh_var head in
+                                 let extendL3x = extend l3x (gz,head2) in
+                                 let gzArray = [((Var (gz)), head)] in
+                                 let concatgxArray = (rep @  gzArray) in
+                                 aux2 tail tail2 extendL3x concatgxArray
                                )
                                else (
-                                let extendL3x = extend l3x (head, head2) in
-                                aux2 tail tail2 extendL3x rep
+                                 let extendL3x = extend l3x (head, head2) in
+                                 aux2 tail tail2 extendL3x rep
                                )
-                           | _ -> (l3x,rep)
-                      in let (l3x', rep') = aux2 l2 l3 list2 repl in
-                      fold_ex remainder l3x' rep'
-                | _ -> type_fail "Needed a tuple" ) )
-      in let (list2', rep') = fold_ex li ctx [] in infer list2' (replacing rep' e1)
-  | Apply (e1, e2) -> (match infer ctx e1 with
-      | TArrow (t1, t2) -> (unify (infer ctx e2) t1; t2 )
-      | _ -> type_fail "Need a function to apply argument" )
-  | Var (n) -> (try match ctx_lookup ctx n with
-      | TVar (lim) -> (match !lim with
-          | Some (lim') -> lim'
-          | None -> ctx_lookup ctx n )
-      | _ -> ctx_lookup ctx n
-     with NotFound -> type_fail "Free variable" )
-  | Anno (e1, t2') -> (unify (infer ctx e1 ) t2'; t2')
+                           | _ -> (l3x,rep) in
+                      let (l3x', repl2) = aux2 l2 l3 list2 repl in
+                      fold_ex remainder l3x' repl2
+                | _ -> type_fail "Error - Please give a tuple" ) ) in
+      let (list2', repl2) = fold_ex li ctx [] in
+      let replaceRepl2 = replacing repl2 e1 in
+      infer list2' replaceRepl2
+  | Apply (el1, el2) -> (
+      let matchInfer = infer ctx el1 in
+      match matchInfer with
+      | TArrow (type1, type2) -> (
+        let inferEl2 = infer ctx el2 in
+        unify inferEl2 type1;
+        type2
+      )
+      | _ -> type_fail "Error - No function provided, needed to apply arguments")
+  | Var (var) -> (
+    let matchCTX = ctx_lookup ctx var in
+    try match matchCTX with
+      | TVar (l) -> (
+        let nonL = !l in
+        match nonL with
+          | Some (l') -> l'
+          | None -> ctx_lookup ctx var
+      )
+      | _ -> ctx_lookup ctx var
+     with NotFound -> type_fail "Error - Free variable" )
+  | Anno (var1, type1) ->
+    let inferVar1 = infer ctx var1 in
+    unify inferVar1 type1;
+    type1
 
 
 
