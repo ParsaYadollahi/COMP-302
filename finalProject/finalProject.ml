@@ -494,75 +494,148 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
       unify2
   | Primop (o, l1) -> (match o with
       | Negate -> (match l1 with
-          | [x] ->
-              (let inferEl = infer ctx x in
-               unify inferEl TInt;
-               TInt)
-          | _ -> type_fail "Error - Cannot negate: missinig arguments")
+          | [x] -> (
+              let inferEl = infer ctx x in
+              unify inferEl TInt;
+              TInt
+            )
+          | _ ->
+              type_fail "Error - Cannot negate: missinig arguments")
       | Or | And -> (
-          if (List.for_all (
+          if (
+            List.for_all (
               fun el -> (
                   let inferEl = infer ctx el in
                   unify inferEl TBool;
-                  true)) l1 ) then
+                  true
+                )
+            ) l1
+          ) then
             TBool
-          else type_fail "Error - Not all arguments are booleans"
+          else
+            type_fail "Error - Not all arguments are booleans"
         )
       | Equals | NotEquals | LessThan | GreaterEqual | LessEqual | GreaterThan -> (
-          if (List.for_all (
+          if (
+            List.for_all (
               fun el -> (
                   let inferEl = infer ctx el in
                   unify inferEl TInt;
-                  true)) l1 )
+                  true
+                )
+            ) l1
+          )
           then
             TBool
           else
             type_fail "Error - Not all arguments are integers"
         )
-      | Plus | Minus | Times | Div ->
-          (if (List.for_all (fun x -> (unify (infer ctx x) TInt; true)) l1 )
-           then TInt else type_fail "Expected all arguments to be ints")
+      | Plus | Minus | Times | Div -> (
+          if (
+            List.for_all (
+              fun x -> (
+                  let inferEl = infer ctx x in
+                  unify inferEl TInt;
+                  true
+                )
+            ) l1
+          )
+          then
+            TInt
+          else
+            type_fail "Error - Not all arguments are integers")
     )
 
 
-  | Tuple (tuplist) -> let tup = List.fold_left (fun x y -> x @ [infer ctx y])
-                           [] tuplist in TProduct (tup)
-  | Fn (n, ctx2, e1) -> (match ctx2 with
-      | Some (t') -> TArrow (t', infer (extend ctx (n, t') ) e1)
-      | None -> let a8' = fresh_tvar() in
-          let advanced = infer (extend ctx (n, a8') ) e1 in
-          TArrow (infer (extend ctx (n, a8')) (Var n) , advanced) )
-  | Rec (f, ctx2, e1) -> ctx2
+  | Tuple tList -> (
+      let t = List.fold_left (
+          fun el1 el2 -> (
+              let inferElY = infer ctx el2 in
+              let concatInferElY = el1 @ [inferElY] in
+              concatInferElY
+            )
+        )
+      [] tList in
+      TProduct (t)
+    )
+
+  | Fn (el1, el2, el3) -> (
+    match el2 with
+      | Some (type1) ->
+        let extendType = el1, type1 in
+        let inferExtend = extend ctx (extendType) in
+        let inferEl = infer inferExtend el3 in
+        TArrow (
+        type1, inferEl
+        )
+      | None ->
+        let extendctx = el1, fresh_tvar() in
+        let inferAny = extend ctx extendctx in
+        let inferEl3 = infer inferAny el3 in
+        let inferEl1 = infer inferAny (Var el1) in
+        TArrow (
+          inferEl1 ,
+          inferEl3
+        )
+    )
+  | Rec (el1, el2, el3) -> el2
   | Let (li,e1) ->
-      let rec containsKey map k = let Ctx(m) = map in match m with
-        | [] -> false
-        | (key, _)::t -> if key = k then true else containsKey (Ctx (t)) k
+      let rec aux map key =
+        let Ctx(m) = map in
+          match m with
+          | [] -> false
+          | (t, _)::remainder ->
+            if t = key then
+              true
+            else
+             aux (Ctx (remainder)) key
       in
-      let rec fold_ex l1z l2z replace = match l1z with
-        | [] -> (l2z, replace)
-        | gx::tx -> (match gx with
-            | Val (ex, na) | ByName (ex, na) ->
-                if containsKey l2z na then let naz = fresh_var na in
-                  fold_ex tx (extend l2z (naz,infer l2z (replacing replace ex)) )
-                    (replace @ [((Var (naz)), na)]) else
-                  fold_ex tx (extend l2z (na,infer l2z (replacing replace ex)) )
-                    replace
-            | Valtuple (ex, na) -> (match infer l2z (replacing replace ex) with
-                | TProduct (l3) -> if List.length na <> List.length l3 then
-                      type_fail "Tuple sizes need to be the same"
+      let rec fold_ex list1 list2 repl =
+        match list1 with
+        | [] -> (list2, repl)
+        | x :: remainder -> (
+          match x with
+            | Val (el1, el2) | ByName (el1, el2) -> (
+                if aux list2 el2 then (
+                 let naz = fresh_var el2 in
+                 let replaceEl1 = replacing repl el1 in
+                 let inferEl1 = infer list2 replaceEl1 in
+                 let extendInfer =  naz, inferEl1 in
+                 let extendList2 = extend list2 (extendInfer) in
+                  let elArray = [(Var (naz)), el2] in
+                  let concatElRepl = repl @ elArray in
+                  fold_ex remainder extendList2 concatElRepl
+                )
+                else (
+                  let replace = replacing repl el1 in
+                  let inferList2 = infer list2 replace in
+                  let extendInfer = el2, inferList2 in
+                  let extendList2 = extend list2 (extendInfer) in
+                  fold_ex remainder extendList2 repl
+                )
+            )
+            | Valtuple (ex, l2) -> (
+              let replace = replacing repl ex in
+              let matching = infer list2 replace in
+              match matching with
+                | TProduct (l3) ->
+                  let lenList2 = List.length l2 in
+                  let lenList3 = List.length l3 in
+                  if lenList2 = lenList3 then
+                      type_fail "Error - Size of tuples must be equal"
                     else let rec combinehelp l1x l2x l3x rep =
                            match (l1x, l2x) with
                            | ([], _) -> (l3x, rep)
                            | (g::t), (i::h) ->
-                               if containsKey l3x g then let gz = fresh_var g in
+                               if aux l3x g then let gz = fresh_var g in
                                  combinehelp t h (extend l3x (gz,i) )
                                    (rep @ [((Var (gz)), g)] )
                                else combinehelp t h (extend l3x (g, i)) rep
                            | _ -> (l3x,rep)
-                      in let (l3x', rep') = combinehelp na l3 l2z replace in
-                      fold_ex tx l3x' rep'
+                      in let (l3x', rep') = combinehelp l2 l3 list2 repl in
+                      fold_ex remainder l3x' rep'
                 | _ -> type_fail "Needed a tuple" ) )
-      in let (l2z', rep') = fold_ex li ctx [] in infer l2z' (replacing rep' e1)
+      in let (list2', rep') = fold_ex li ctx [] in infer list2' (replacing rep' e1)
   | Apply (e1, e2) -> (match infer ctx e1 with
       | TArrow (t1, t2) -> (unify (infer ctx e2) t1; t2 )
       | _ -> type_fail "Need a function to apply argument" )
