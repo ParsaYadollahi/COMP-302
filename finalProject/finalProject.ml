@@ -623,16 +623,16 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
                   let lenList3 = List.length l3 in
                   if lenList2 = lenList3 then
                       type_fail "Error - Size of tuples must be equal"
-                    else let rec combinehelp l1x l2x l3x rep =
+                    else let rec aux2 l1x l2x l3x rep =
                            match (l1x, l2x) with
                            | ([], _) -> (l3x, rep)
-                           | (g::t), (i::h) ->
-                               if aux l3x g then let gz = fresh_var g in
-                                 combinehelp t h (extend l3x (gz,i) )
-                                   (rep @ [((Var (gz)), g)] )
-                               else combinehelp t h (extend l3x (g, i)) rep
+                           | (head::t), (i::h) ->
+                               if aux l3x head then let gz = fresh_var head in
+                                 aux2 t h (extend l3x (gz,i) )
+                                   (rep @ [((Var (gz)), head)] )
+                               else aux2 t h (extend l3x (head, i)) rep
                            | _ -> (l3x,rep)
-                      in let (l3x', rep') = combinehelp l2 l3 list2 repl in
+                      in let (l3x', rep') = aux2 l2 l3 list2 repl in
                       fold_ex remainder l3x' rep'
                 | _ -> type_fail "Needed a tuple" ) )
       in let (list2', rep') = fold_ex li ctx [] in infer list2' (replacing rep' e1)
