@@ -626,11 +626,18 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
                     else let rec aux2 l1x l2x l3x rep =
                            match (l1x, l2x) with
                            | ([], _) -> (l3x, rep)
-                           | (head::t), (i::h) ->
-                               if aux l3x head then let gz = fresh_var head in
-                                 aux2 t h (extend l3x (gz,i) )
-                                   (rep @ [((Var (gz)), head)] )
-                               else aux2 t h (extend l3x (head, i)) rep
+                           | (head::tail), (head2::tail2) ->
+                               if aux l3x head then (
+                                let gz = fresh_var head in
+                                let extendL3x = extend l3x (gz,head2) in
+                                let gzArray = [((Var (gz)), head)] in
+                                let concatGZArray = (rep @  gzArray) in
+                                 aux2 tail tail2 extendL3x concatGZArray
+                               )
+                               else (
+                                let extendL3x = extend l3x (head, head2) in
+                                aux2 tail tail2 extendL3x rep
+                               )
                            | _ -> (l3x,rep)
                       in let (l3x', rep') = aux2 l2 l3 list2 repl in
                       fold_ex remainder l3x' rep'
