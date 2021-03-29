@@ -492,86 +492,87 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
       unify unify1 TBool;
       unify unify2 unify3;
       unify2
-  | Primop (o, l1) -> match o with
-    | Negate -> (match l1 with
-        | [x] ->
-            (let inferEl = infer ctx x in
-             unify x TInt;
-             TInt)
-        | _ -> type_fail "Error - Cannot negate: missinig arguments")
-    | Or | And -> (
-      if (List.for_all (
-        fun el -> (
-            let inferEl = infer ctx el in
-            unify inferEl TBool;
-            true)) l1 ) then
-         TBool
-       else type_fail "Error - Not all arguments are booleans"
-       )
-    | Equals | NotEquals | LessThan | GreaterEqual | LessEqual | GreaterThan -> (
-        if (List.for_all (
-          fun el -> (
-              let inferEl = infer ctx el in
-              unify inferEl TInt;
-              true)) l1 )
-         then
-           TBool
-         else
-           type_fail "Error - Not all arguments are integers"
-           )
-    | Plus | Minus | Times | Div ->
-        (if (List.for_all (fun x -> (unify (infer ctx x) TInt; true)) l1 )
-        then TInt else type_fail "Expected all arguments to be ints")
+  | Primop (o, l1) -> (match o with
+      | Negate -> (match l1 with
+          | [x] ->
+              (let inferEl = infer ctx x in
+               unify inferEl TInt;
+               TInt)
+          | _ -> type_fail "Error - Cannot negate: missinig arguments")
+      | Or | And -> (
+          if (List.for_all (
+              fun el -> (
+                  let inferEl = infer ctx el in
+                  unify inferEl TBool;
+                  true)) l1 ) then
+            TBool
+          else type_fail "Error - Not all arguments are booleans"
+        )
+      | Equals | NotEquals | LessThan | GreaterEqual | LessEqual | GreaterThan -> (
+          if (List.for_all (
+              fun el -> (
+                  let inferEl = infer ctx el in
+                  unify inferEl TInt;
+                  true)) l1 )
+          then
+            TBool
+          else
+            type_fail "Error - Not all arguments are integers"
+        )
+      | Plus | Minus | Times | Div ->
+          (if (List.for_all (fun x -> (unify (infer ctx x) TInt; true)) l1 )
+           then TInt else type_fail "Expected all arguments to be ints")
+    )
 
 
-    | Tuple (tuplist) -> let tup = List.fold_left (fun x y -> x @ [infer ctx y])
-                             [] tuplist in TProduct (tup)
-    | Fn (n, ctx2, e1) -> (match ctx2 with
-        | Some (t') -> TArrow (t', infer (extend ctx (n, t') ) e1)
-        | None -> let a8' = fresh_tvar() in
-            let advanced = infer (extend ctx (n, a8') ) e1 in
-            TArrow (infer (extend ctx (n, a8')) (Var n) , advanced) )
-    | Rec (f, ctx2, e1) -> ctx2
-    | Let (li,e1) ->
-        let rec containsKey map k = let Ctx(m) = map in match m with
-          | [] -> false
-          | (key, _)::t -> if key = k then true else containsKey (Ctx (t)) k
-        in
-        let rec fold_ex l1z l2z replace = match l1z with
-          | [] -> (l2z, replace)
-          | gx::tx -> (match gx with
-              | Val (ex, na) | ByName (ex, na) ->
-                  if containsKey l2z na then let naz = fresh_var na in
-                    fold_ex tx (extend l2z (naz,infer l2z (replacing replace ex)) )
-                      (replace @ [((Var (naz)), na)]) else
-                    fold_ex tx (extend l2z (na,infer l2z (replacing replace ex)) )
-                      replace
-              | Valtuple (ex, na) -> (match infer l2z (replacing replace ex) with
-                  | TProduct (l3) -> if List.length na <> List.length l3 then
-                        type_fail "Tuple sizes need to be the same"
-                      else let rec combinehelp l1x l2x l3x rep =
-                             match (l1x, l2x) with
-                             | ([], _) -> (l3x, rep)
-                             | (g::t), (i::h) ->
-                                 if containsKey l3x g then let gz = fresh_var g in
-                                   combinehelp t h (extend l3x (gz,i) )
-                                     (rep @ [((Var (gz)), g)] )
-                                 else combinehelp t h (extend l3x (g, i)) rep
-                             | _ -> (l3x,rep)
-                        in let (l3x', rep') = combinehelp na l3 l2z replace in
-                        fold_ex tx l3x' rep'
-                  | _ -> type_fail "Needed a tuple" ) )
-        in let (l2z', rep') = fold_ex li ctx [] in infer l2z' (replacing rep' e1)
-    | Apply (e1, e2) -> (match infer ctx e1 with
-        | TArrow (t1, t2) -> (unify (infer ctx e2) t1; t2 )
-        | _ -> type_fail "Need a function to apply argument" )
-    | Var (n) -> (try match ctx_lookup ctx n with
-        | TVar (lim) -> (match !lim with
-            | Some (lim') -> lim'
-            | None -> ctx_lookup ctx n )
-        | _ -> ctx_lookup ctx n
-       with NotFound -> type_fail "Free variable" )
-    | Anno (e1, t2') -> (unify (infer ctx e1 ) t2'; t2')
+  | Tuple (tuplist) -> let tup = List.fold_left (fun x y -> x @ [infer ctx y])
+                           [] tuplist in TProduct (tup)
+  | Fn (n, ctx2, e1) -> (match ctx2 with
+      | Some (t') -> TArrow (t', infer (extend ctx (n, t') ) e1)
+      | None -> let a8' = fresh_tvar() in
+          let advanced = infer (extend ctx (n, a8') ) e1 in
+          TArrow (infer (extend ctx (n, a8')) (Var n) , advanced) )
+  | Rec (f, ctx2, e1) -> ctx2
+  | Let (li,e1) ->
+      let rec containsKey map k = let Ctx(m) = map in match m with
+        | [] -> false
+        | (key, _)::t -> if key = k then true else containsKey (Ctx (t)) k
+      in
+      let rec fold_ex l1z l2z replace = match l1z with
+        | [] -> (l2z, replace)
+        | gx::tx -> (match gx with
+            | Val (ex, na) | ByName (ex, na) ->
+                if containsKey l2z na then let naz = fresh_var na in
+                  fold_ex tx (extend l2z (naz,infer l2z (replacing replace ex)) )
+                    (replace @ [((Var (naz)), na)]) else
+                  fold_ex tx (extend l2z (na,infer l2z (replacing replace ex)) )
+                    replace
+            | Valtuple (ex, na) -> (match infer l2z (replacing replace ex) with
+                | TProduct (l3) -> if List.length na <> List.length l3 then
+                      type_fail "Tuple sizes need to be the same"
+                    else let rec combinehelp l1x l2x l3x rep =
+                           match (l1x, l2x) with
+                           | ([], _) -> (l3x, rep)
+                           | (g::t), (i::h) ->
+                               if containsKey l3x g then let gz = fresh_var g in
+                                 combinehelp t h (extend l3x (gz,i) )
+                                   (rep @ [((Var (gz)), g)] )
+                               else combinehelp t h (extend l3x (g, i)) rep
+                           | _ -> (l3x,rep)
+                      in let (l3x', rep') = combinehelp na l3 l2z replace in
+                      fold_ex tx l3x' rep'
+                | _ -> type_fail "Needed a tuple" ) )
+      in let (l2z', rep') = fold_ex li ctx [] in infer l2z' (replacing rep' e1)
+  | Apply (e1, e2) -> (match infer ctx e1 with
+      | TArrow (t1, t2) -> (unify (infer ctx e2) t1; t2 )
+      | _ -> type_fail "Need a function to apply argument" )
+  | Var (n) -> (try match ctx_lookup ctx n with
+      | TVar (lim) -> (match !lim with
+          | Some (lim') -> lim'
+          | None -> ctx_lookup ctx n )
+      | _ -> ctx_lookup ctx n
+     with NotFound -> type_fail "Free variable" )
+  | Anno (e1, t2') -> (unify (infer ctx e1 ) t2'; t2')
 
 
 
@@ -598,9 +599,9 @@ let execute (s: string) : unit =
 (************************************************************
  *                     Tester template:                     *
  *         Codes to test your interpreter by yourself.      *
- *         You can change these to whatever you want.       *
- *                We won't grade these codes                *
- ************************************************************)
+*         You can change these to whatever you want.       *
+                                               *                We won't grade these codes                *
+                                  ************************************************************)
 let list_to_string el_to_string l : string =
   List.fold_left
     begin fun acc el ->
