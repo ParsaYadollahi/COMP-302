@@ -614,8 +614,8 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
                   fold_ex remainder extendList2 repl
                 )
             )
-            | Valtuple (ex, l2) -> (
-              let replace = replacing repl ex in
+            | Valtuple (l1, l2) -> (
+              let replace = replacing repl l1 in
               let matching = infer list2 replace in
               match matching with
                 | TProduct (l3) ->
