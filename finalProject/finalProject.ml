@@ -169,59 +169,92 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
   | Let (ds, e2) ->
       let f = free_vars e' in
       let replacing list expr =
-        let rec replacing2 list2 expr2 = match list2 with
-          | [] -> expr2
-          | i::t -> let (b, c) = i in replacing2 t (subst (b, c) expr2)
-        in replacing2 (List.rev list) expr in
-      let rec helper2 l1 l2 replace track = (match l1 with
-          | [] ->  (l2, replace, track)
-          | h::t -> match h with
-            | Val (y, n) ->
-                if n = x then (if not(track) then (helper2 t
-                                                     ( l2 @ [Val (  (
-                                                           subst (e', x)
-                                                             (replacing replace y)
-                                                         ), n) ]      )
-                                                     replace true) else
-                                 (helper2 t ( l2 @ [Val (  ( replacing replace y
-                                                           ), n) ]) replace true))
-                else if member n f then let z = fresh_var n in helper2 t
-                    ( if not(track) then (
-                          l2 @ [Val (( subst (e', x)(replacing replace y)
-                                     ), z) ]) else ( l2 @ [Val ((
-                        replacing replace y ), z) ]) ) (replace @ [(Var (z), n)])
-                    track
-                else helper2 t ( if not(track) then ( l2 @ [Val (  (
-                    subst (e', x) (replacing replace y) ), n) ]) else
-                      ( l2 @ [Val (( replacing replace y ), n) ]) ) replace track
-            | Valtuple (y,n) ->
-                let rec find l1x l2x l3x trk = (match l1x with
-                    | [] -> (l2x, l3x, trk)
-                    | h::t ->
-                        if h = x then find t (l2x @ [x]) l3x true else
-                        if member h f then let z = fresh_var h in
-                          find t (l2x @ [z]) (l3x @ [(Var(z), h)]) trk
-                        else find t (l2x @ [h]) l3x trk )
-                in let (ax, bx, tr1) = find n [] [] false in
-                helper2 t  ( if not(track) then ( l2 @ [Valtuple (  (
-                    subst (e', x) (replacing replace y) ), ax) ])
-                    else ( l2 @ [Valtuple (( replacing replace y ), ax) ]) )
-                  (replace @ bx) (track || tr1)
-            | ByName (y, n) ->
-                if n = x then (if not(track) then (helper2 t ( l2 @ [ByName ( (
-                    subst (e', x) (replacing replace y) ), n) ]) replace true)
-                   else (helper2 t ( l2 @ [ByName (  ( replacing replace y
-                                                     ), n) ]) replace true)) else
-                if member n f then let z = fresh_var n in helper2 t
-                    (if not(track) then ( l2 @ [ByName (( subst (e', x)
-                                                            (replacing replace y)
-                                                        ), z) ]      )
-                     else ( l2 @ [ByName (( replacing replace y ), z) ] ) )
-                    (replace @ [(Var (z), n)]) track
-                else helper2 t (if not(track) then ( l2 @ [ByName (  (
-                    subst (e', x)(replacing replace y) ), n) ])
-                   else  ( l2 @ [ByName (( replacing replace y ), n) ]))
-                    replace track ) in let (g,h,tr) = helper2 ds [] [] false in
+        let rec aux list2 el2 = match list2 with
+          | [] -> el2
+          | head :: t ->
+              let (e1, e2) = head in
+              let substEl = subst (e1, e2) in
+              let newEl2 = substEl el2 in
+              aux t (newEl2)
+        in aux (List.rev list) expr in
+      let rec aux2 list1 list2 repl track = (
+        match list1 with
+        | [] ->  (list2, repl, track)
+        | head :: t -> match head with
+          | Val (y, n) ->
+          let memNF = member n f in
+          let replY = replacing repl y in
+              if n = x then (
+                if not(track) then (
+                  let substEl = subst (e', x) (replY) in
+                  let valSubst = [Val (substEl, n)] in
+                  let concatList2 = list2 @ valSubst in
+                  aux2 t concatList2 repl true
+                )
+                else (
+                  let valSubst = [Val (  ( replY ), n)] in
+                  let concatList2 = list2 @ valSubst in
+                  aux2 t concatList2 repl true
+                )
+              )
+              else if memNF then
+               let z = fresh_var n in
+                aux2 t (
+                  if not(track) then
+                    let substEl = subst (e', x)(replY) in
+                    let valSubst = [Val (substEl, z) ] in
+                    let concatList2 = list2 @ valSubst in
+                    concatList2
+                  else (
+                    let valRepl = [Val (replY, z) ] in
+                    let concatList2 = list2 @ valRepl in
+                    let varZ = Var (z), n in
+                    let concatRepl = repl @ [varZ] in
+                    concatList2
+                  )
+                )
+                concatRepl track
+              else (
+                aux2 t (
+                  if not(track) then (
+                    let substEl = subst (e', x) (replY) in
+                    let valSubst = Val ((substEl), n) in
+                    let concatList2 = list2 @ [valsubst] in
+                    concatList2
+                  )
+                  else (
+                    list2 @ [Val (( replacing repl y ), n) ]
+                  )
+                ) repl track
+              )
+          | Valtuple (y,n) ->
+              let rec find l1x l2x l3x trk = (match l1x with
+                  | [] -> (l2x, l3x, trk)
+                  | h::t ->
+                      if h = x then find t (l2x @ [x]) l3x true else
+                      if member h f then let z = fresh_var h in
+                        find t (l2x @ [z]) (l3x @ [(Var(z), h)]) trk
+                      else find t (l2x @ [h]) l3x trk )
+              in let (ax, bx, tr1) = find n [] [] false in
+              aux2 t  ( if not(track) then ( list2 @ [Valtuple (  (
+                  subst (e', x) (replacing repl y) ), ax) ])
+                  else ( list2 @ [Valtuple (( replacing repl y ), ax) ]) )
+                (repl @ bx) (track || tr1)
+          | ByName (y, n) ->
+              if n = x then (if not(track) then (aux2 t ( list2 @ [ByName ( (
+                  subst (e', x) (replacing repl y) ), n) ]) repl true)
+                 else (aux2 t ( list2 @ [ByName (  ( replacing repl y
+                                                   ), n) ]) repl true)) else
+              if member n f then let z = fresh_var n in aux2 t
+                  (if not(track) then ( list2 @ [ByName (( subst (e', x)
+                                                             (replacing repl y)
+                                                         ), z) ]      )
+                   else ( list2 @ [ByName (( replacing repl y ), z) ] ) )
+                  (repl @ [(Var (z), n)]) track
+              else aux2 t (if not(track) then ( list2 @ [ByName (  (
+                  subst (e', x)(replacing repl y) ), n) ])
+                 else  ( list2 @ [ByName (( replacing repl y ), n) ]))
+                  repl track ) in let (g,h,tr) = aux2 ds [] [] false in
       if not tr then Let (g, subst (e', x) (replacing h e2 ) )
       else Let (g, (replacing h e2))
 
@@ -649,26 +682,26 @@ let rec infer (ctx : context) (e : exp) : typ =  match e with
       let matchInfer = infer ctx el1 in
       match matchInfer with
       | TArrow (type1, type2) -> (
-        let inferEl2 = infer ctx el2 in
-        unify inferEl2 type1;
-        type2
-      )
+          let inferEl2 = infer ctx el2 in
+          unify inferEl2 type1;
+          type2
+        )
       | _ -> type_fail "Error - No function provided, needed to apply arguments")
   | Var (var) -> (
-    let matchCTX = ctx_lookup ctx var in
-    try match matchCTX with
-      | TVar (l) -> (
-        let nonL = !l in
-        match nonL with
-          | Some (l') -> l'
-          | None -> ctx_lookup ctx var
-      )
-      | _ -> ctx_lookup ctx var
-     with NotFound -> type_fail "Error - Free variable" )
+      let matchCTX = ctx_lookup ctx var in
+      try match matchCTX with
+        | TVar (l) -> (
+            let nonL = !l in
+            match nonL with
+            | Some (l') -> l'
+            | None -> ctx_lookup ctx var
+          )
+        | _ -> ctx_lookup ctx var
+      with NotFound -> type_fail "Error - Free variable" )
   | Anno (var1, type1) ->
-    let inferVar1 = infer ctx var1 in
-    unify inferVar1 type1;
-    type1
+      let inferVar1 = infer ctx var1 in
+      unify inferVar1 type1;
+      type1
 
 
 
