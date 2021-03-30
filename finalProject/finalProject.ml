@@ -310,9 +310,13 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                 ) else (
                   let param = (
                     if not(track) then (
-                      list2 @ [ByName (  ( substEl ), n) ]
+                      let byNameSubstEl = ByName ( ( substEl ),n) in
+                      let concatbyNameSubstEl = list2 @ [byNameSubstEl] in
+                      concatbyNameSubstEl
                     ) else (
-                      list2 @ [ByName (( replacing repl y ), n) ]
+                      let byNameReplY = ByName (( replY ), n) in
+                      let concatbyNameReplY = list2 @ [byNameReplY] in
+                      concatbyNameReplY
                     )
                   ) in
                   aux2 remainder param repl track
@@ -320,10 +324,13 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
               )
       ) in
       let (g,h,tr) = aux2 ds [] [] false in
-      if not tr then
-        Let (g, subst (e', x) (replacing h e2))
-      else
-        Let (g, (replacing h e2))
+      let replHE2 = replacing h e2 in
+      if not tr then (
+        let substReplHE2 = subst (e', x) (replHE2) in
+        Let (g, substReplHE2)
+      ) else (
+        Let (g, replHE2)
+      )
 
 (* TESTING SUBST OUT *)
 (* let subst ( Int 5 , "x") ( If ( Bool ( true ) , Var "x", Var "y") ) ; *)
