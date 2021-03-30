@@ -180,26 +180,26 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
       let rec aux2 list1 list2 repl track = (
         match list1 with
         | [] ->  (list2, repl, track)
-        | head :: t -> match head with
+        | head :: remainder -> match head with
           | Val (y, n) ->
-          let memNF = member n f in
-          let replY = replacing repl y in
+              let memNF = member n f in
+              let replY = replacing repl y in
               if n = x then (
                 if not(track) then (
                   let substEl = subst (e', x) (replY) in
                   let valSubst = [Val (substEl, n)] in
                   let concatList2 = list2 @ valSubst in
-                  aux2 t concatList2 repl true
+                  aux2 remainder concatList2 repl true
                 )
                 else (
                   let valSubst = [Val (  ( replY ), n)] in
                   let concatList2 = list2 @ valSubst in
-                  aux2 t concatList2 repl true
+                  aux2 remainder concatList2 repl true
                 )
               )
               else if memNF then (
-               let z = fresh_var n in
-               let param = (
+                let z = fresh_var n in
+                let param = (
                   if not(track) then
                     let substEl = subst (e', x)(replY) in
                     let valSubst = [Val (substEl, z) ] in
@@ -214,10 +214,10 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                   )
                 ) in
                 let concatReplace = repl @ [(Var (z), n)] in
-                aux2 t param concatReplace track
+                aux2 remainder param concatReplace track
               )
               else (
-                aux2 t (
+                aux2 remainder (
                   if not(track) then (
                     let substEl = subst (e', x) (replY) in
                     let valSubst = Val ((substEl), n) in
@@ -225,40 +225,105 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                     concatList2
                   )
                   else (
-                    list2 @ [Val (( replacing repl y ), n) ]
+                    let replaceY = replacing repl y in
+                    let valReplace = Val ((replaceY), n) in
+                    let concatList2 = list2 @ [valReplace] in
+                    concatList2
                   )
-                ) repl track
+                )
+                  repl track
               )
           | Valtuple (y,n) ->
               let rec find l1x l2x l3x trk = (match l1x with
                   | [] -> (l2x, l3x, trk)
-                  | h::t ->
-                      if h = x then find t (l2x @ [x]) l3x true else
-                      if member h f then let z = fresh_var h in
-                        find t (l2x @ [z]) (l3x @ [(Var(z), h)]) trk
-                      else find t (l2x @ [h]) l3x trk )
-              in let (ax, bx, tr1) = find n [] [] false in
-              aux2 t  ( if not(track) then ( list2 @ [Valtuple (  (
-                  subst (e', x) (replacing repl y) ), ax) ])
-                  else ( list2 @ [Valtuple (( replacing repl y ), ax) ]) )
-                (repl @ bx) (track || tr1)
+                  | head :: remainder ->
+                      let memHead = member head f in
+                      if head = x then (
+                        let concatX = l2x @ [x] in
+                        find remainder concatX l3x true
+                      )
+                      else (
+                        if memHead then (
+                          let z = fresh_var head in
+                          let concatZ = l2x @ [z] in
+                          let varZ = (Var(z), head) in
+                          let concatVarZ = l3x @ [varZ] in
+                          find remainder concatZ concatVarZ trk
+                        )
+                        else (
+                          let concatHead = l2x @ [head] in
+                          find remainder concatHead l3x trk
+                        )
+                      )
+                ) in
+              let (ax, bx, tr1) =
+                find n [] [] false in
+              let replBX = repl @ bx in
+              let trackOrTr1 = track || tr1 in
+              let param = (
+                let replY = replacing repl y in
+                if not(track) then (
+                  let substY = subst (e', x) (replY) in
+                  let valTupleSubstY = Valtuple (( substY ), ax) in
+                  let concatvalTupleSubstY = list2 @ [valTupleSubstY] in
+                  concatvalTupleSubstY
+                )
+                else (
+                  let valTupleReplY = Valtuple (( replY ), ax) in
+                  let concatValTupleReplY = list2 @ [valTupleReplY] in
+                  concatValTupleReplY
+                )
+              ) in
+              aux2 remainder param replBX trackOrTr1
           | ByName (y, n) ->
-              if n = x then (if not(track) then (aux2 t ( list2 @ [ByName ( (
-                  subst (e', x) (replacing repl y) ), n) ]) repl true)
-                 else (aux2 t ( list2 @ [ByName (  ( replacing repl y
-                                                   ), n) ]) repl true)) else
-              if member n f then let z = fresh_var n in aux2 t
-                  (if not(track) then ( list2 @ [ByName (( subst (e', x)
-                                                             (replacing repl y)
-                                                         ), z) ]      )
-                   else ( list2 @ [ByName (( replacing repl y ), z) ] ) )
-                  (repl @ [(Var (z), n)]) track
-              else aux2 t (if not(track) then ( list2 @ [ByName (  (
-                  subst (e', x)(replacing repl y) ), n) ])
-                 else  ( list2 @ [ByName (( replacing repl y ), n) ]))
-                  repl track ) in let (g,h,tr) = aux2 ds [] [] false in
-      if not tr then Let (g, subst (e', x) (replacing h e2 ) )
-      else Let (g, (replacing h e2))
+              let replY = replacing repl y in
+              let substEl = subst (e', x) (replY) in
+              if n = x then (
+                if not(track) then (
+                  let byNameSubst = ByName ( ( substEl ), n) in
+                  let concatbyNameSubst = list2 @ [byNameSubst] in
+                  aux2 remainder concatbyNameSubst repl true
+                )
+                else (
+                  let byNameReplY = ByName (  ( replY ), n) in
+                  let concatByNameReplY = list2 @ [byNameReplY] in
+                  aux2 remainder concatByNameReplY repl true
+                )
+              ) else (
+                let memNF = member n f in
+                if memNF then (
+                  let z = fresh_var n in
+                  let varZN = (Var (z), n) in
+                  let concatReplVarZN = repl @ [varZN] in
+                  let param = (
+                    if not(track) then (
+                      let byNameSubstZ = ByName (( substEl ), z) in
+                      let concatbyNameSubstZ = list2 @ [byNameSubstZ] in
+                      concatbyNameSubstZ
+                    ) else (
+                      let byNameReplYZ = ByName (( replY ), z) in
+                      let concatByNameReplYZ = list2 @ [byNameReplYZ] in
+                      concatByNameReplYZ
+                    )
+                  ) in
+                  aux2 remainder param concatReplVarZN track
+                ) else (
+                  let param = (
+                    if not(track) then (
+                      list2 @ [ByName (  ( substEl ), n) ]
+                    ) else (
+                      list2 @ [ByName (( replacing repl y ), n) ]
+                    )
+                  ) in
+                  aux2 remainder param repl track
+                )
+              )
+      ) in
+      let (g,h,tr) = aux2 ds [] [] false in
+      if not tr then
+        Let (g, subst (e', x) (replacing h e2))
+      else
+        Let (g, (replacing h e2))
 
 (* TESTING SUBST OUT *)
 (* let subst ( Int 5 , "x") ( If ( Bool ( true ) , Var "x", Var "y") ) ; *)
@@ -728,11 +793,11 @@ let execute (s: string) : unit =
 
 
 (************************************************************
- *                     Tester template:                     *
- *         Codes to test your interpreter by yourself.      *
-*         You can change these to whatever you want.       *
-                                               *                We won't grade these codes                *
-                                  ************************************************************)
+*                     Tester template:                     *
+*         Codes to test your interpreter by yourself.      *
+                                            *         You can change these to whatever you want.       *
+                                                                                           *                We won't grade these codes                *
+                                                                              ************************************************************)
 let list_to_string el_to_string l : string =
   List.fold_left
     begin fun acc el ->
