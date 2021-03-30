@@ -197,9 +197,9 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                   aux2 t concatList2 repl true
                 )
               )
-              else if memNF then
+              else if memNF then (
                let z = fresh_var n in
-                aux2 t (
+               let param = (
                   if not(track) then
                     let substEl = subst (e', x)(replY) in
                     let valSubst = [Val (substEl, z) ] in
@@ -212,14 +212,16 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
                     let concatRepl = repl @ [varZ] in
                     concatList2
                   )
-                )
-                concatRepl track
+                ) in
+                let concatReplace = repl @ [(Var (z), n)] in
+                aux2 t param concatReplace track
+              )
               else (
                 aux2 t (
                   if not(track) then (
                     let substEl = subst (e', x) (replY) in
                     let valSubst = Val ((substEl), n) in
-                    let concatList2 = list2 @ [valsubst] in
+                    let concatList2 = list2 @ [valSubst] in
                     concatList2
                   )
                   else (
