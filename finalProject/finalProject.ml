@@ -830,11 +830,11 @@ let run_test name f ts stringify : unit =
           end
       with
       | exn ->
-          print_string (name ^ " test #" ^ string_of_int idx ^ " raised an exception:\n");
-          print_string (Printexc.to_string exn);
-          print_newline ()
-    end
-    ts
+print_string (name ^ " test #" ^ string_of_int idx ^ " raised an exception:\n");
+print_string (Printexc.to_string exn);
+print_newline ()
+end
+ts
 
 let run_free_vars_tests () : unit =
   run_test "free_vars" free_vars free_vars_tests (list_to_string (fun x -> x))
