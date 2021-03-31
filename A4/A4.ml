@@ -63,7 +63,7 @@ end ;;
 (* This function is just another example of the use of optional arguments.
   Removing or altering it should not change your grade, as the function Range.range
   is being tested. Our grader cannot, at the moment, handle optional arguments.
-(* *)
+*)
 let range ?(start : int = 0) ?(step : int = 1) (stop : int) : int seq =
   Range.range start step stop
 ;;
@@ -81,9 +81,44 @@ let example_ranges () = [
 module RationalField : (AlgField with type t = rational) = struct
   type t = rational
 
-  let equal a b = a.den <> 0 && b.den <> 0 && a.den * b.num = a.num * b.den
-end ;;
+  let equal a b = a.den = 0 && b.den = 0 && a.den * b.num = a.num * b.den
+  let zero = {
+    den = 1;
+    num = 0;
+  }
+  let one = {
+    den = 1;
+    num = 1;
+  }
+  let add x y = {
+    den = (
+      x.den*y.den
+    );
+    num = (
+      x.num * y.den
+    ) + (
+      y.num * x.den
+    );
+  }
+  let inv x = {
+    den = (x.num);
+    num = x.den;
+  }
+  let neg x = {
+    den = (x.den);
+    num = x.num * (-1);
+  }
+  let mul x y = {
+    den = (
+      x.den * y.den
+    );
+    num = (
+      x.num * y.num
+    );
+  }
 
+end ;;
+(*
 module BooleanField : (AlgField with type t = bool) = struct
   type t = bool
 
@@ -110,5 +145,4 @@ As mentioned in prelude, you can test this in the Toplevel, just do not place it
 in your code below, or the grader will have a fit.
                                                 It has to do with weird dependencies in the grader. It's sad.
 
-module Complex_EC = EllipticCurves(ComplexField)
-                    *)
+module Complex_EC = EllipticCurves(ComplexField) *)
