@@ -1,12 +1,21 @@
 (* Q0  : Get familiar with the external syntax of MiniML *)
 let parse_tests : (string * (string, exp) either) list = [
     (* Provide your tests for the parser *)
-  ("1;", Right (Int 1))
+  ("1;", Right (Int 1));
+  ("1 = 1;", Right (Primop (Equals, [Int 1; Int 1])));
+  ("1 < 2;", Right (Primop (LessThan, [Int 1; Int 2])))
 ]
 
 
 let free_vars_tests : (exp * name list) list = [
-  (Int 10, [])
+  (Int 10, []);
+  ((Anno (If (Bool false, Tuple [], Tuple []), TInt)), [] );
+  ((Apply (Apply (Var "Parsa", Fn ("Yadollahi", None, Primop (Times, []))), Int 12)), ["Parsa"]);
+  ((Fn ("x", None, Var "x")),[]);
+  ((Let ([Valtuple (Int 4, ["x"; "y"; "z"]); Val (Var "z", "n2")], Primop (Plus, [Primop (Plus, []); Var "y"]))), []);
+  ((Let ([Val (Int 8, "x")], Let ([Val (Primop (Plus, []), "x")], Primop (Plus, [])))) ,[]);
+  ((Fn ("x", None, Primop (Plus, [Var "x"; Var "y"]))), ["y"]);
+  ((Fn ("y", None, Apply (Var "x", Var "y"))),["x"]);
 ]
 
 (* Q1  : Find the free variables in an expression *)
