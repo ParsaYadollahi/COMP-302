@@ -93,6 +93,9 @@ let rec unused_vars (e : exp) : name list = match e with
       let unusedVars2 = unused_vars var2 in
       (unusedVars1) @ (unusedVars2)
   | Anno (var1, var2) -> unused_vars var1
+
+
+
   | Let (l, vars) ->
       let rec delSetFunction delSet set = match set with
         | [] -> []
@@ -107,21 +110,22 @@ let rec unused_vars (e : exp) : name list = match e with
         | [] -> (l2, l3)
         | x:: remainder -> match x with
           | Valtuple (var1, var2) ->
-              let freeVars1 = free_vars var1 in
-              let unusedVars1 = unused_vars var1 in
-              let delFunctionVar = delSetFunction (freeVars1) (l2) in
+              let freeVars1 = (free_vars var1) in
+              let unusedVars1 = (unused_vars var1) in
+              let concatUnusedVars = (l3 @ (unusedVars1)) in
+              let delFunctionVar = (delSetFunction (freeVars1) (l2)) @ var2 in
+              aux remainder (delFunctionVar) (concatUnusedVars)
+          | Val(var1, var2) | ByName (var1, var2) ->
+              (* let freeVars1 = (free_vars var1) in *)
+              (*
+              let unusedVars1 = (unused_vars var1) in
               let concatUnusedVars = (l3 @ unusedVars1) in
-              let concatDelVar = delFunctionVar @ var2 in
-              aux remainder concatDelVar
-                concatUnusedVars;
-          | Val(var1, var2)  | ByName (var1, var2) ->
-              let freeVars1 = free_vars var1 in
-              let unusedVars1 = unused_vars var1 in
-              let concatUnusedVars = l3 @ unusedVars1 in
-              let delFunctionVar = delSetFunction (freeVars1) (l2) in
-              let concatDelVar = delFunctionVar @ [var2] in
-              aux remainder concatDelVar
-                concatUnusedVars;
+              let delFunctionVar = (delSetFunction (freeVars1) (l2)) in
+              let concatDelVar = (delFunctionVar @ [var2]) in
+              aux remainder concatDelVar concatUnusedVars;
+              *)
+
+              aux remainder ((delSetFunction ((free_vars var1)) (l2)) @ [var2]) (l3 @ (unused_vars var1))
       in let (u1, u2) = aux l [] [] in
       let delSetFuncVar = delSetFunction (free_vars vars) u1 in
       let unusedVars = unused_vars vars in
