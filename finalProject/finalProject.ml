@@ -62,6 +62,10 @@ let rec free_vars (e : exp) : name list = match e with
 
 
 let unused_vars_tests : (exp * name list) list = [
+
+  ((Let ([Valtuple (Tuple [Primop (Plus, [Int 2; Int 1]); Primop (Times, [Int 2; Var "z"])], ["x"; "z"])], Primop (Times, [Var "x"; Var "y"]))) ,  ["z"] );
+  ((Let ([Val (Rec ("ryan", TArrow (TInt, TInt), Fn ("n", Some TInt, If (Primop (Equals, [Var "n"; Int 0]), Var "x", Apply (Var "ryan", Primop (Minus, [Var "n"; Int 1]))))), "ryan")], Int 3)), ["ryan"]);
+  ((Anno (If (Bool true, Tuple [Var "x1"; Var "x2"; Var "x3"], Tuple [Var "x4"; Var "x5"]), TInt)) ,  [] );
 ]
 
 (* Q2  : Check variables are in use *)
