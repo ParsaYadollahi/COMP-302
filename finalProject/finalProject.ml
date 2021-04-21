@@ -80,7 +80,7 @@ let rec unused_vars (e : exp) : name list = match e with
       freeVars1 @ (arr_unused)
   | Fn (var1, var2, var3) ->
       if member var1 (free_vars var3)
-        then unused_vars var3
+      then unused_vars var3
       else
         var1 :: unused_vars var3;
   | Primop (_, vars) | Tuple (vars) ->
@@ -349,10 +349,8 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
         Let (g, replHE2)
       )
 
-(* TESTING SUBST OUT *)
-(* let subst ( Int 5 , "x") ( If ( Bool ( true ) , Var "x", Var "y") ) ; *)
-
 let eval_tests : (exp * exp) list = [
+  ((Let ([Valtuple (Tuple [Int 1; Bool true], ["x"; "x"])], Var "x")), Bool true);
 ]
 
 
@@ -362,12 +360,9 @@ let replacing l1 var =
     | [] -> var2
     | x :: remainder ->
         let (b, c) = x in
-        let substEl = subst (b, c) in
-        let rem = (substEl var2) in
-        aux remainder rem
+        aux remainder (subst (b, c) var2)
   in
-  let revListL1 = (List.rev l1) in
-  aux revListL1 var
+  aux (List.rev l1) var
 
 (* Q4  : Evaluate an expression in big-step *)
 let rec eval : exp -> exp =
@@ -399,19 +394,14 @@ let rec eval : exp -> exp =
       | Fn (x, t, e) ->
           Fn (x, t, e)
       | Apply (e1, e2) ->
-          let evalE1 = eval e1 in
-          match evalE1 with
+          match eval e1 with
           | Fn (el1, el2, el3) ->
-              let evalE2 = eval e2 in
-              let substE2 = subst (evalE2, el1) in
-              eval (substE2 el3 )
+              eval (subst (eval e2, el1) el3 )
           | _ -> stuck ("Didn't evaluate to a function")
 
 
           | Rec (f, t, e) ->
-              let r = Rec (f,t, e) in
-              let substR = subst ((r), f) in
-              eval (substR e)
+              eval (subst ((Rec (f,t, e)), f) e)
 
           | Primop (And, es) -> Bool (
               List.fold_left (
