@@ -66,6 +66,7 @@ let unused_vars_tests : (exp * name list) list = [
   ((Let ([Valtuple (Tuple [Primop (Plus, [Int 2; Int 1]); Primop (Times, [Int 2; Var "z"])], ["x"; "z"])], Primop (Times, [Var "x"; Var "y"]))) ,  ["z"] );
   ((Let ([Val (Rec ("ryan", TArrow (TInt, TInt), Fn ("n", Some TInt, If (Primop (Equals, [Var "n"; Int 0]), Var "x", Apply (Var "ryan", Primop (Minus, [Var "n"; Int 1]))))), "ryan")], Int 3)), ["ryan"]);
   ((Anno (If (Bool true, Tuple [Var "x1"; Var "x2"; Var "x3"], Tuple [Var "x4"; Var "x5"]), TInt)) ,  [] );
+  ((Fn ("x", None, Int 3)), ["x"]);
 ]
 
 (* Q2  : Check variables are in use *)
@@ -78,12 +79,10 @@ let rec unused_vars (e : exp) : name list = match e with
       let arr_unused = freeVars2 @ freeVars3 in
       freeVars1 @ (arr_unused)
   | Fn (var1, var2, var3) ->
-      let unusedVars = (unused_vars var3) in
-      let freeVars = (free_vars var3) in
-      if member var1 freeVars
-      then unusedVars
+      if member var1 (free_vars var3)
+        then unused_vars var3
       else
-        var1 :: unusedVars;
+        var1 :: unused_vars var3;
   | Primop (_, vars) | Tuple (vars) ->
       List.fold_left (fun var1 var2 ->
           let unusedVars2 = unused_vars var2 in
@@ -110,11 +109,12 @@ let rec unused_vars (e : exp) : name list = match e with
         | [] -> (l2, l3)
         | x:: remainder -> match x with
           | Valtuple (var1, var2) ->
-              let freeVars1 = (free_vars var1) in
+              (* let freeVars1 = (free_vars var1) in
               let unusedVars1 = (unused_vars var1) in
               let concatUnusedVars = (l3 @ (unusedVars1)) in
               let delFunctionVar = (delSetFunction (freeVars1) (l2)) @ var2 in
-              aux remainder (delFunctionVar) (concatUnusedVars)
+              aux remainder (delFunctionVar) (concatUnusedVars) *)
+              aux remainder ((delSetFunction ((free_vars var1)) (l2)) @ var2) (l3 @ (unused_vars var1))
           | Val(var1, var2) | ByName (var1, var2) ->
               (* let freeVars1 = (free_vars var1) in *)
               (*
