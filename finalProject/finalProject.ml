@@ -78,15 +78,12 @@ let rec unused_vars (e : exp) : name list = match e with
       let freeVars3 = free_vars var3 in
       let arr_unused = freeVars2 @ freeVars3 in
       freeVars1 @ (arr_unused)
-  | Fn (var1, var2, var3) ->
-      if member var1 (free_vars var3)
-      then unused_vars var3
-      else
-        var1 :: unused_vars var3;
+  | Fn (var1, var2, var3) -> var1 :: unused_vars var3;
   | Primop (_, vars) | Tuple (vars) ->
       List.fold_left (fun var1 var2 ->
           let unusedVars2 = unused_vars var2 in
-          var1 @ (unusedVars2)) [] vars
+          let concatUnusedVar = var1 @ (unusedVars2) in
+          concatUnusedVar) [] vars
   | Apply (var1, var2) ->
       let unusedVars1 = unused_vars var1 in
       let unusedVars2 = unused_vars var2 in
@@ -99,7 +96,8 @@ let rec unused_vars (e : exp) : name list = match e with
       let rec delSetFunction delSet set = match set with
         | [] -> []
         | x :: remainder ->
-            if member x delSet then
+          let mem = member x delSet in
+            if mem then
               let deleteEl1 = (delete [x] delSet) in
               delSetFunction deleteEl1 remainder
             else
@@ -107,25 +105,21 @@ let rec unused_vars (e : exp) : name list = match e with
               x :: deleteEl2 remainder in
       let rec aux l1 l2 l3 = match l1 with
         | [] -> (l2, l3)
-        | x:: remainder -> match x with
+        | x :: remainder -> match x with
           | Valtuple (var1, var2) ->
-              (* let freeVars1 = (free_vars var1) in
-              let unusedVars1 = (unused_vars var1) in
-              let concatUnusedVars = (l3 @ (unusedVars1)) in
-              let delFunctionVar = (delSetFunction (freeVars1) (l2)) @ var2 in
-              aux remainder (delFunctionVar) (concatUnusedVars) *)
-              aux remainder ((delSetFunction ((free_vars var1)) (l2)) @ var2) (l3 @ (unused_vars var1))
+              let freeVars1 = free_vars var1 in
+              let unusedVars = unused_vars var1 in
+              let appendL3 = l3 @ (unusedVars) in
+              let delftn = (delSetFunction (freeVars1) (l2)) in
+              let appendDelFtn = (delftn) @ var2 in
+              aux remainder (appendDelFtn) (appendL3)
           | Val(var1, var2) | ByName (var1, var2) ->
-              (* let freeVars1 = (free_vars var1) in *)
-              (*
-              let unusedVars1 = (unused_vars var1) in
-              let concatUnusedVars = (l3 @ unusedVars1) in
-              let delFunctionVar = (delSetFunction (freeVars1) (l2)) in
-              let concatDelVar = (delFunctionVar @ [var2]) in
-              aux remainder concatDelVar concatUnusedVars;
-              *)
-
-              aux remainder ((delSetFunction ((free_vars var1)) (l2)) @ [var2]) (l3 @ (unused_vars var1))
+              let freeVars1 = free_vars var1 in
+              let unusedVars = unused_vars var1 in
+              let appendL3 = l3 @ (unusedVars) in
+              let delftn = (delSetFunction (freeVars1) (l2)) in
+              let appendDelFtn = (delftn) @ [var2] in
+              aux remainder (appendDelFtn) (appendL3)
       in let (u1, u2) = aux l [] [] in
       let delSetFuncVar = delSetFunction (free_vars vars) u1 in
       let unusedVars = unused_vars vars in
@@ -140,12 +134,7 @@ let subst_tests : (((exp * name) * exp) * exp) list = [
 (* Q3  : Substitute a variable *)
 let rec subst ((e', x) : exp * name) (e : exp) : exp =
   match e with
-  | Var y ->
-      if x = y then
-        e'
-      else
-        Var y
-
+  | Var y -> Var y
   | Int _ | Bool _ -> e
   | Primop (po, es) -> Primop (po, List.map (subst (e', x)) es)
   | If (e1, e2, e3) -> If (subst (e', x) e1, subst (e', x) e2, subst (e', x) e3)
@@ -160,24 +149,19 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
       if y != x then
         let subEl = subst (e', x) in
         let freeVar = free_vars e' in
-        if member y freeVar then
-          let freshVar = fresh_var y in
-          let subVar = subEl (subst (Var (freshVar), y) e) in
-          Fn (freshVar, t, subVar)
-        else
-          Fn (y, t, subEl e)
+        let freshVar = fresh_var y in
+        let subVar = subEl (subst (Var (freshVar), y) e) in
+        Fn (freshVar, t, subVar)
       else
         Fn (y, t, e)
   | Rec (y, t, e) ->
-      if y != x then
-        let subEl = subst (e', x) in
-        let freeVars = free_vars e' in
-        if member y freeVars then
-          let freshVar = fresh_var y in
-          let subVar = subEl (subst (Var (freshVar), y) e) in
-          Rec (freshVar, t, subVar)
-        else
-          Rec (y, t, subEl e)
+      let subEl = subst (e', x) in
+      let freeVars = free_vars e' in
+      let freeMem = member y freeVars in
+      if freeMem then
+        let freshVar = fresh_var y in
+        let subVar = subEl (subst (Var (freshVar), y) e) in
+        Rec (freshVar, t, subVar)
       else
         Rec (y, t, e)
 
@@ -198,80 +182,15 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
         match list1 with
         | [] ->  (list2, repl, track)
         | head :: remainder -> match head with
-          | Val (y, n) ->
-              let memNF = member n f in
-              let replY = replacing repl y in
-              if n = x then (
-                if not(track) then (
-                  let substEl = subst (e', x) (replY) in
-                  let valSubst = [Val (substEl, n)] in
-                  let concatList2 = list2 @ valSubst in
-                  aux2 remainder concatList2 repl true
-                )
-                else (
-                  let valSubst = [Val (  ( replY ), n)] in
-                  let concatList2 = list2 @ valSubst in
-                  aux2 remainder concatList2 repl true
-                )
-              )
-              else if memNF then (
-                let z = fresh_var n in
-                let param = (
-                  if not(track) then
-                    let substEl = subst (e', x)(replY) in
-                    let valSubst = [Val (substEl, z) ] in
-                    let concatList2 = list2 @ valSubst in
-                    concatList2
-                  else (
-                    let valRepl = [Val (replY, z) ] in
-                    let concatList2 = list2 @ valRepl in
-                    let varZ = Var (z), n in
-                    let concatRepl = repl @ [varZ] in
-                    concatList2
-                  )
-                ) in
-                let concatReplace = repl @ [(Var (z), n)] in
-                aux2 remainder param concatReplace track
-              )
-              else (
-                aux2 remainder (
-                  if not(track) then (
-                    let substEl = subst (e', x) (replY) in
-                    let valSubst = Val ((substEl), n) in
-                    let concatList2 = list2 @ [valSubst] in
-                    concatList2
-                  )
-                  else (
-                    let replaceY = replacing repl y in
-                    let valReplace = Val ((replaceY), n) in
-                    let concatList2 = list2 @ [valReplace] in
-                    concatList2
-                  )
-                )
-                  repl track
-              )
           | Valtuple (y,n) ->
               let rec find l1x l2x l3x trk = (match l1x with
                   | [] -> (l2x, l3x, trk)
                   | head :: remainder ->
-                      let memHead = member head f in
-                      if head = x then (
-                        let concatX = l2x @ [x] in
-                        find remainder concatX l3x true
-                      )
-                      else (
-                        if memHead then (
-                          let z = fresh_var head in
-                          let concatZ = l2x @ [z] in
-                          let varZ = (Var(z), head) in
-                          let concatVarZ = l3x @ [varZ] in
-                          find remainder concatZ concatVarZ trk
-                        )
-                        else (
-                          let concatHead = l2x @ [head] in
-                          find remainder concatHead l3x trk
-                        )
-                      )
+                      let z = fresh_var head in
+                      let concatZ = l2x @ [z] in
+                      let varZ = (Var(z), head) in
+                      let concatVarZ = l3x @ [varZ] in
+                      find remainder concatZ concatVarZ trk
                 ) in
               let (ax, bx, tr1) =
                 find n [] [] false in
@@ -279,82 +198,28 @@ let rec subst ((e', x) : exp * name) (e : exp) : exp =
               let trackOrTr1 = track || tr1 in
               let param = (
                 let replY = replacing repl y in
-                if not(track) then (
-                  let substY = subst (e', x) (replY) in
-                  let valTupleSubstY = Valtuple (( substY ), ax) in
-                  let concatvalTupleSubstY = list2 @ [valTupleSubstY] in
-                  concatvalTupleSubstY
-                )
-                else (
-                  let valTupleReplY = Valtuple (( replY ), ax) in
-                  let concatValTupleReplY = list2 @ [valTupleReplY] in
-                  concatValTupleReplY
-                )
+                let substY = subst (e', x) (replY) in
+                let valTupleSubstY = Valtuple (( substY ), ax) in
+                let concatvalTupleSubstY = list2 @ [valTupleSubstY] in
+                concatvalTupleSubstY
               ) in
               aux2 remainder param replBX trackOrTr1
           | ByName (y, n) ->
               let replY = replacing repl y in
               let substEl = subst (e', x) (replY) in
-              if n = x then (
-                if not(track) then (
-                  let byNameSubst = ByName ( ( substEl ), n) in
-                  let concatbyNameSubst = list2 @ [byNameSubst] in
-                  aux2 remainder concatbyNameSubst repl true
-                )
-                else (
-                  let byNameReplY = ByName (  ( replY ), n) in
-                  let concatByNameReplY = list2 @ [byNameReplY] in
-                  aux2 remainder concatByNameReplY repl true
-                )
-              ) else (
-                let memNF = member n f in
-                if memNF then (
-                  let z = fresh_var n in
-                  let varZN = (Var (z), n) in
-                  let concatReplVarZN = repl @ [varZN] in
-                  let param = (
-                    if not(track) then (
-                      let byNameSubstZ = ByName (( substEl ), z) in
-                      let concatbyNameSubstZ = list2 @ [byNameSubstZ] in
-                      concatbyNameSubstZ
-                    ) else (
-                      let byNameReplYZ = ByName (( replY ), z) in
-                      let concatByNameReplYZ = list2 @ [byNameReplYZ] in
-                      concatByNameReplYZ
-                    )
-                  ) in
-                  aux2 remainder param concatReplVarZN track
-                ) else (
-                  let param = (
-                    if not(track) then (
-                      let byNameSubstEl = ByName ( ( substEl ),n) in
-                      let concatbyNameSubstEl = list2 @ [byNameSubstEl] in
-                      concatbyNameSubstEl
-                    ) else (
-                      let byNameReplY = ByName (( replY ), n) in
-                      let concatbyNameReplY = list2 @ [byNameReplY] in
-                      concatbyNameReplY
-                    )
-                  ) in
-                  aux2 remainder param repl track
-                )
-              )
+                let byNameSubst = ByName ( ( substEl ), n) in
+                let concatbyNameSubst = list2 @ [byNameSubst] in
+                aux2 remainder concatbyNameSubst repl true
       ) in
       let (g,h,tr) = aux2 ds [] [] false in
       let replHE2 = replacing h e2 in
-      if not tr then (
-        let substReplHE2 = subst (e', x) (replHE2) in
-        Let (g, substReplHE2)
-      ) else (
-        Let (g, replHE2)
-      )
+      let substReplHE2 = subst (e', x) (replHE2) in
+      Let (g, substReplHE2)
 
 let eval_tests : (exp * exp) list = [
   ((Let ([Valtuple (Tuple [Int 1; Bool true], ["x"; "x"])], Var "x")), Bool true);
 ]
 
-
-  (* Useful helper function *)
 let replacing l1 var =
   let rec aux l2 var2 = match l2 with
     | [] -> var2
@@ -408,11 +273,7 @@ let rec eval : exp -> exp =
                 fun el1 el2 ->
                   let evalEl2 = eval el2 in
                   match evalEl2 with
-                  | Bool bool ->
-                      if bool then
-                        el1
-                      else
-                        bool
+                  | Bool bool -> bool
                   | _ -> stuck ("Did not get a boolean")
               ) true es  )
           | Primop (Or, es) -> Bool (
@@ -420,11 +281,7 @@ let rec eval : exp -> exp =
                 fun el1 el2 ->
                   let evalEl2 = eval el2 in
                   match evalEl2 with
-                  | Bool bool ->
-                      if bool then
-                        bool
-                      else
-                        el1
+                  | Bool bool -> bool
                   | _ -> stuck ("Did not get a boolean")
               ) true es  )
           | Primop (op, es) ->
@@ -443,30 +300,21 @@ let rec eval : exp -> exp =
                       let evalReplace = [eval (replacing el2 var1), var2] in
                       let concatReplace = el2 @ evalReplace in
                       aux remainder (concatReplace)
-                  | ByName (var1, var2) ->
-                      let replace = replacing el2 var1 in
-                      let addReplace = [replace, var2] in
-                      let concatReplace = el2 @ addReplace in
-                      aux remainder (concatReplace)
                   | Valtuple (var1, var2) ->
                       let evalVar1 = eval var1 in
                       match evalVar1 with
                       | Tuple (l1) ->
                           let lenList1 = List.length l1 in
                           let lenList2 = List.length var2 in
-                          if  lenList1 = lenList2 then
-                            stuck "length of Tuple is wring"
-                          else
-                            let rec substTuples l1 l2 repl = match (l1, l2) with
-                              | ([], _) -> repl
-                              | (x_l1::remainderL1, y_l2::remainderL2) ->
-                                  let replace = replacing repl y_l2 in
-                                  let addReplace = [replace, x_l1] in
-                                  let concatReplace = repl @ addReplace in
-                                  substTuples remainderL1 remainderL2 concatReplace
-                              | _ -> repl
-                            in let rep = substTuples var2 l1 el2 in
-                            aux remainder rep
+                          let rec substTuples l1 l2 repl = match (l1, l2) with
+                            | (x_l1::remainderL1, y_l2::remainderL2) ->
+                                let replace = replacing repl y_l2 in
+                                let addReplace = [replace, x_l1] in
+                                let concatReplace = repl @ addReplace in
+                                substTuples remainderL1 remainderL2 concatReplace
+                            | _ -> repl
+                          in let rep = substTuples var2 l1 el2 in
+                          aux remainder rep
                       | _ ->  stuck "Needed a tuple"
               in let repl = aux ds [] in
               let el = replacing repl e
@@ -503,14 +351,11 @@ let rec unify (ty1 : typ) (ty2 : typ) : unit =
           fun el -> aux1 el any1
         ) l1
     | TVar var ->
-        if var = any1 then
-          type_fail "Fail in the free variables"
-        else
-          let nonVar = !var in
-          match (nonVar) with
-          | None -> true
-          | Some var' ->
-              aux1 var' any1
+        let nonVar = !var in
+        match (nonVar) with
+        | None -> true
+        | Some var' ->
+            aux1 var' any1
   in
   let rec aux2 bool type1 any = match type1 with
     | TInt -> true
@@ -521,10 +366,6 @@ let rec unify (ty1 : typ) (ty2 : typ) : unit =
     | TProduct (l1) ->
         List.for_all (fun el -> aux2 true el any) l1
     | TVar var ->
-        if var = any then
-          bool &&
-          (type_fail "Fail in the free variables")
-        else
           let nonVar = !var in
           match (nonVar) with
           | None -> true
@@ -837,11 +678,11 @@ let run_test name f ts stringify : unit =
           end
       with
       | exn ->
-print_string (name ^ " test #" ^ string_of_int idx ^ " raised an exception:\n");
-print_string (Printexc.to_string exn);
-print_newline ()
-end
-ts
+          print_string (name ^ " test #" ^ string_of_int idx ^ " raised an exception:\n");
+          print_string (Printexc.to_string exn);
+          print_newline ()
+    end
+    ts
 
 let run_free_vars_tests () : unit =
   run_test "free_vars" free_vars free_vars_tests (list_to_string (fun x -> x))
